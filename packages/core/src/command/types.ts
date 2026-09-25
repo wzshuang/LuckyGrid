@@ -24,6 +24,20 @@ export type Command =
       sheetIndex?: string | number;
     }
   | {
+      type: "setStyleRange";
+      row: number;
+      col: number;
+      rowCount: number;
+      colCount: number;
+      style: Partial<
+        Pick<
+          CellData,
+          "bg" | "fc" | "bl" | "it" | "cl" | "un" | "fs" | "ff" | "ht" | "vt" | "tb" | "tr"
+        >
+      >;
+      sheetIndex?: string | number;
+    }
+  | {
       type: "setSelection";
       selection: SelectionRange[];
     }
