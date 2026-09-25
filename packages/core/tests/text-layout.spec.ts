@@ -34,6 +34,19 @@ describe("layoutCellText", () => {
     expect(ys.size).toBe(2);
   });
 
+  it("does not mark overflow when tb=1 but tr is non-zero", () => {
+    const layout = layoutCellText({
+      text: "abcdefghij",
+      cellWidth: 30,
+      cellHeight: 19,
+      tb: 1,
+      tr: 1,
+      font: "10pt sans-serif",
+      measureText: measure(),
+    });
+    expect(layout.overflow).toBe(false);
+  });
+
   it("does not wrap for overflow mode but marks overflow", () => {
     const layout = layoutCellText({
       text: "abcdefghij",
