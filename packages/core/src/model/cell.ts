@@ -37,6 +37,10 @@ export interface CellStyle {
   ht?: number;
   /** vertical align: 0 middle, 1 top, 2 bottom */
   vt?: number;
+  /** text wrap: 0 clip, 1 overflow, 2 wrap */
+  tb?: number;
+  /** text rotate: 0 none … 5 rotation-down */
+  tr?: number;
   /** borders */
   bd?: CellBorder | null;
 }

@@ -16,7 +16,10 @@ export type Command =
       row: number;
       col: number;
       style: Partial<
-        Pick<CellData, "bg" | "fc" | "bl" | "it" | "fs" | "ff" | "ht" | "vt">
+        Pick<
+          CellData,
+          "bg" | "fc" | "bl" | "it" | "cl" | "un" | "fs" | "ff" | "ht" | "vt" | "tb" | "tr"
+        >
       >;
       sheetIndex?: string | number;
     }

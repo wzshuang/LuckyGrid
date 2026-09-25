@@ -92,3 +92,18 @@ export type {
   HeaderLayoutItem,
   HeaderSelectionBand,
 } from "./layout/header-layout.js";
+export {
+  normalizeTb,
+  normalizeTr,
+  tbFromMenu,
+  trFromMenu,
+  rotationAngleDeg,
+  isVerticalText,
+} from "./text/tb-tr.js";
+export type {
+  TextWrapMode,
+  TextRotateMode,
+  MeasureTextFn,
+  TextGlyph,
+  CellTextLayout,
+} from "./text/types.js";
