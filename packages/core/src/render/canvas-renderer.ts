@@ -19,6 +19,11 @@ import {
   borderKey,
   computeBorderInfoMap,
 } from "../border/materialize-border-info.js";
+import { layoutCellText } from "../text/text-layout.js";
+import { scanOverflowSpan } from "../text/overflow.js";
+import { normalizeTb, normalizeTr } from "../text/tb-tr.js";
+import type { CellTextLayout, MeasureTextFn } from "../text/types.js";
+import type { Sheet } from "../model/sheet.js";
 
 function textDecorationLineYs(
   ty: number,
@@ -32,6 +37,89 @@ function textDecorationLineYs(
     return { underline: ty - fsPx * 0.05, strike: ty - fsPx * 0.45 };
   }
   return { underline: ty + fsPx * 0.3, strike: ty - fsPx * 0.15 };
+}
+
+function createCanvasMeasureText(ctx: CanvasRenderingContext2D): MeasureTextFn {
+  return (text: string, font: string) => {
+    ctx.font = font;
+    const m = ctx.measureText(text);
+    const height =
+      (m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0) || 12;
+    return { width: m.width, height };
+  };
+}
+
+/** Overflow text is drawn at span.startCol (not endCol); clip spans startCol..endCol. */
+function overflowSpanSurfaceRect(
+  sheet: Sheet,
+  row: number,
+  startCol: number,
+  endCol: number,
+  rowOffsets: number[],
+  colOffsets: number[],
+  scrollLeft: number,
+  scrollTop: number,
+  toSurface: (rect: CellRect) => CellRect,
+): { x: number; y: number; width: number; height: number } {
+  const start = toSurface(
+    getCellRect(sheet, row, startCol, rowOffsets, colOffsets, scrollLeft, scrollTop),
+  );
+  const end = toSurface(
+    getCellRect(sheet, row, endCol, rowOffsets, colOffsets, scrollLeft, scrollTop),
+  );
+  return {
+    x: start.x,
+    y: start.y,
+    width: end.x + end.width - start.x,
+    height: start.height,
+  };
+}
+
+function isOverflowSpanIntermediateColumn(
+  sheet: Sheet,
+  row: number,
+  col: number,
+): boolean {
+  for (let c = col - 1; c >= 0; c--) {
+    const left = sheet.getCell(row, c);
+    const leftText = displayValue(left);
+    if (!leftText) continue;
+    if (normalizeTb(left?.tb) !== 1 || normalizeTr(left?.tr) !== 0) continue;
+    const span = scanOverflowSpan(sheet, row, c);
+    if (span.startCol === c && span.endCol >= col) return true;
+    break;
+  }
+  return false;
+}
+
+function paintLayoutGlyphs(
+  ctx: CanvasRenderingContext2D,
+  layout: CellTextLayout,
+  originX: number,
+  originY: number,
+  fs: number,
+  cell: { fc?: string | null; un?: number; cl?: number } | null | undefined,
+): void {
+  const angleRad = (layout.angleDeg * Math.PI) / 180;
+  for (const glyph of layout.glyphs) {
+    const gx = originX + glyph.x;
+    const gy = originY + glyph.y;
+    if (layout.angleDeg !== 0) {
+      ctx.save();
+      ctx.translate(gx, gy);
+      ctx.rotate(angleRad);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(glyph.text, 0, 0);
+      paintTextDecorations(ctx, glyph.text, 0, 0, fs, cell);
+      ctx.restore();
+    } else {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.fillText(glyph.text, gx, gy);
+      paintTextDecorations(ctx, glyph.text, gx, gy, fs, cell);
+    }
+  }
 }
 
 function paintTextDecorations(
@@ -195,32 +283,67 @@ export class CanvasRenderer {
         const fs = cell?.fs ?? 10;
         const bold = cell?.bl ? "bold " : "";
         const italic = cell?.it ? "italic " : "";
-        ctx.font = `${italic}${bold}${fs}pt sans-serif`;
+        const font = `${italic}${bold}${fs}pt sans-serif`;
+        ctx.font = font;
         ctx.fillStyle = cell?.fc ?? "#000000";
         const ht = cell?.ht ?? 1;
         const vt = cell?.vt ?? 0;
-        let tx = rect.x + 3;
-        if (ht === 0) {
-          ctx.textAlign = "center";
-          tx = rect.x + rect.width / 2;
-        } else if (ht === 2) {
-          ctx.textAlign = "right";
-          tx = rect.x + rect.width - 3;
-        } else {
-          ctx.textAlign = "left";
+        const tb = normalizeTb(cell?.tb);
+        const tr = normalizeTr(cell?.tr);
+        const measureText = createCanvasMeasureText(ctx);
+
+        let layoutWidth = rect.width;
+        let layoutHeight = rect.height;
+        let originX = rect.x;
+        let originY = rect.y;
+        let clipRect = rect;
+        let skipBody = false;
+
+        if (tb === 1 && tr === 0) {
+          const span = scanOverflowSpan(sheet, gridRect.row, gridRect.col);
+          if (gridRect.col !== span.startCol) {
+            skipBody = true;
+          } else {
+            clipRect = overflowSpanSurfaceRect(
+              sheet,
+              gridRect.row,
+              span.startCol,
+              span.endCol,
+              this.rowOffsets,
+              this.colOffsets,
+              scrollLeft,
+              scrollTop,
+              toSurface,
+            );
+            layoutWidth = clipRect.width;
+            layoutHeight = clipRect.height;
+            originX = clipRect.x;
+            originY = clipRect.y;
+          }
+        } else if (isOverflowSpanIntermediateColumn(sheet, gridRect.row, gridRect.col)) {
+          skipBody = true;
         }
-        let ty = rect.y + rect.height / 2;
-        if (vt === 1) {
-          ctx.textBaseline = "top";
-          ty = rect.y + 2;
-        } else if (vt === 2) {
-          ctx.textBaseline = "bottom";
-          ty = rect.y + rect.height - 2;
-        } else {
-          ctx.textBaseline = "middle";
+
+        if (!skipBody) {
+          const layout = layoutCellText({
+            text,
+            cellWidth: layoutWidth,
+            cellHeight: layoutHeight,
+            tb,
+            tr,
+            ht,
+            vt,
+            font,
+            measureText,
+          });
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(clipRect.x, clipRect.y, clipRect.width, clipRect.height);
+          ctx.clip();
+          paintLayoutGlyphs(ctx, layout, originX, originY, fs, cell);
+          ctx.restore();
         }
-        ctx.fillText(text, tx, ty);
-        paintTextDecorations(ctx, text, tx, ty, fs, cell);
       }
     };
 

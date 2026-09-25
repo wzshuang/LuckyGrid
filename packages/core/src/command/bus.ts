@@ -12,6 +12,8 @@ import {
   clearCellFormat,
   presetById,
 } from "../format/number-format.js";
+import { recalcRowHeights } from "../text/row-height.js";
+import type { MeasureTextFn } from "../text/types.js";
 
 const DEFAULT_HISTORY = 100;
 
@@ -28,6 +30,7 @@ const STRUCTURAL = new Set([
   "replaceAll",
   "setFilter",
   "setBorders",
+  "setStyleRange",
 ]);
 
 const SHEET_MGMT = new Set(["addSheet", "deleteSheet", "renameSheet"]);
@@ -37,6 +40,7 @@ export class CommandBus {
   private redoStack: InverseEntry[] = [];
   private applyingHistory = false;
   formula: FormulaEngine;
+  measureText: MeasureTextFn = (text) => ({ width: text.length * 7, height: 12 });
 
   constructor(
     private workbook: Workbook,
@@ -144,13 +148,21 @@ export class CommandBus {
 
     if (command.type === "setCellValue" || command.type === "setStyle" || command.type === "setFormat" || command.type === "clearFormat") {
       const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+      const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
       const current = cloneCell(
         this.workbook.getCell(command.row, command.col, sheetIndex),
       );
-      this.workbook.setCell(command.row, command.col, entry.prevCell ?? null, sheetIndex);
       if (command.type === "setCellValue") {
+        const curHeight = sheet.getRowHeight(command.row);
+        this.workbook.setCell(command.row, command.col, entry.prevCell ?? null, sheetIndex);
         this.formula.recalculate(command.row, command.col, sheetIndex);
+        if (entry.prevHeight != null) {
+          sheet.setRowHeight(command.row, entry.prevHeight);
+          this.workbook.emit({ type: "change", sheetIndex });
+        }
+        return { command, prevCell: current, prevHeight: curHeight };
       }
+      this.workbook.setCell(command.row, command.col, entry.prevCell ?? null, sheetIndex);
       return { command, prevCell: current };
     }
     if (command.type === "setSelection" && entry.prevSelection) {
@@ -358,6 +370,25 @@ export class CommandBus {
             command.style ?? 1,
           );
         });
+      case "setStyleRange":
+        return this.applyStructural(command, (sheet) => {
+          const { row, col, rowCount, colCount, style } = command;
+          for (let r = row; r < row + rowCount; r++) {
+            for (let c = col; c < col + colCount; c++) {
+              const prev = sheet.getCell(r, c);
+              sheet.setCell(r, c, { ...(prev ?? {}), ...style });
+            }
+          }
+          if (
+            style.tb !== undefined ||
+            style.tr !== undefined ||
+            style.fs !== undefined
+          ) {
+            const rows: number[] = [];
+            for (let r = row; r < row + rowCount; r++) rows.push(r);
+            recalcRowHeights(sheet, rows, this.measureText);
+          }
+        });
       case "addSheet": {
         const prevSheets = this.workbook.toSnapshots();
         const prevActiveIndex = this.workbook.activeIndex;
@@ -406,6 +437,7 @@ export class CommandBus {
     const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
     const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
     const prevCell = cloneCell(sheet.getCell(command.row, command.col));
+    const prevHeight = sheet.getRowHeight(command.row);
 
     if (command.formula) {
       const f = command.formula.startsWith("=")
@@ -440,9 +472,12 @@ export class CommandBus {
       this.formula.recalculateDependents(command.row, command.col, sheetIndex);
     }
 
+    recalcRowHeights(sheet, [command.row], this.measureText);
+    this.workbook.emit({ type: "change", sheetIndex });
+
     const cellAfter = sheet.getCell(command.row, command.col);
     return {
-      inverse: { command, prevCell },
+      inverse: { command, prevCell, prevHeight },
       op: {
         t: "v",
         i: sheetIndex,

@@ -35,10 +35,34 @@ import {
   normalizeRange,
   rangesOverlap,
 } from "./selection/range.js";
+import type { MeasureTextFn } from "./text/types.js";
+
+function createDefaultMeasureText(): MeasureTextFn {
+  let ctx: CanvasRenderingContext2D | null = null;
+  const getCtx = (): CanvasRenderingContext2D | null => {
+    if (ctx) return ctx;
+    if (typeof OffscreenCanvas !== "undefined") {
+      ctx = new OffscreenCanvas(1, 1).getContext("2d") as CanvasRenderingContext2D | null;
+    } else if (typeof document !== "undefined") {
+      ctx = document.createElement("canvas").getContext("2d");
+    }
+    return ctx;
+  };
+  return (text: string, font: string) => {
+    const c = getCtx();
+    if (!c) return { width: text.length * 7, height: 12 };
+    c.font = font;
+    const m = c.measureText(text);
+    const height =
+      (m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0) || 12;
+    return { width: m.width, height };
+  };
+}
 
 export class WorkbookEngine {
   readonly workbook: Workbook;
   readonly commands: CommandBus;
+  private measureTextFn: MeasureTextFn = createDefaultMeasureText();
   private renderer: CanvasRenderer | null = null;
   private viewport = { width: 800, height: 600 };
   private raf = 0;
@@ -47,7 +71,13 @@ export class WorkbookEngine {
   constructor(data?: LuckySheetRaw[] | SheetSnapshot[]) {
     this.workbook = new Workbook();
     this.commands = new CommandBus(this.workbook);
+    this.commands.measureText = this.measureTextFn;
     if (data) this.load(data);
+  }
+
+  setMeasureText(fn: MeasureTextFn): void {
+    this.measureTextFn = fn;
+    this.commands.measureText = fn;
   }
 
   load(data: LuckySheetRaw[] | SheetSnapshot[]): void {
@@ -496,19 +526,27 @@ export class WorkbookEngine {
 
   applyStyleToSelection(
     style: Partial<
-      Pick<CellData, "bg" | "fc" | "bl" | "it" | "cl" | "un" | "fs" | "ff" | "ht" | "vt">
+      Pick<
+        CellData,
+        "bg" | "fc" | "bl" | "it" | "cl" | "un" | "fs" | "ff" | "ht" | "vt" | "tb" | "tr"
+      >
     >,
   ): void {
-    const sel = this.getActiveRange();
-    if (!sel) return;
-    const r0 = Math.min(sel.row[0], sel.row[1]);
-    const r1 = Math.max(sel.row[0], sel.row[1]);
-    const c0 = Math.min(sel.column[0], sel.column[1]);
-    const c1 = Math.max(sel.column[0], sel.column[1]);
-    for (let r = r0; r <= r1; r++) {
-      for (let c = c0; c <= c1; c++) {
-        this.execute({ type: "setStyle", row: r, col: c, style });
-      }
+    const ranges = this.workbook.selection;
+    if (ranges.length === 0) return;
+    for (const sel of ranges) {
+      const r0 = Math.min(sel.row[0], sel.row[1]);
+      const r1 = Math.max(sel.row[0], sel.row[1]);
+      const c0 = Math.min(sel.column[0], sel.column[1]);
+      const c1 = Math.max(sel.column[0], sel.column[1]);
+      this.execute({
+        type: "setStyleRange",
+        row: r0,
+        col: c0,
+        rowCount: r1 - r0 + 1,
+        colCount: c1 - c0 + 1,
+        style,
+      });
     }
   }
 
