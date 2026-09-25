@@ -22,6 +22,7 @@
 
 - 整文件移植原版 `getRowlen.js` / 全表启动时 `rhchInit` 式行高扫描。
 - 任意自定义角度的工具栏 UI（导入 JSON 若带非 0–5 的 `tr` / 角度：尽力渲染；菜单仍只暴露六档）。
+- 从 `CellData.extras` 提升或迁移历史 `tb`/`tr`（不做历史兼容；JSON 须在单元格一等字段上带 `tb`/`tr`）。
 - 富文本 `inlineString` 内局部换行 / 旋转。
 - 像素级截图回归。
 - 合并类型菜单、字体家族等其它工具栏缺口。
@@ -49,7 +50,7 @@
 
 存储用 **数字**（与原版 `updateFormatCell` 写入一致）。菜单用字符串 id（`overflow` / `wrap` / `clip`，`none` / `angleup` / `angledown` / `vertical` / `rotation-up` / `rotation-down`），在 Vue 或薄映射层转为数字再下发。
 
-导入 JSON：若历史数据把 `tb` / `tr` 放在 `extras`，加载时提升到一等字段；未知数字角度（非 0–5）保留原值，渲染尽力，菜单无精确勾选时回退显示为「无旋转」类状态。
+导入 JSON：单元格上的 `tb` / `tr` 按一等字段直接读取（与原版一致，不做 `extras` 提升或历史兼容迁移）。未知数字角度（非 0–5）保留原值，渲染尽力，菜单无精确勾选时回退显示为「无旋转」类状态。
 
 ### 4.2 命令 / Engine
 
@@ -183,6 +184,5 @@
 | 行高 | `packages/core/src/text/row-height.ts` 或 layout 同目录 |
 | 命令 / Engine | `command/types.ts`、`engine.ts`、`clipboard/style.ts` |
 | 渲染 | `packages/core/src/render/canvas-renderer.ts` |
-| IO | `packages/core/src/io/lucky-json.ts`（extras 提升） |
 | UI | `ToolbarTextWrapSplit.vue`、`ToolbarTextRotateSplit.vue`、`Toolbar.vue` |
 | 文档 | 实现后更新 `docs/FEATURE_MAP.md`（自动换行/旋转 → usable） |
