@@ -173,6 +173,36 @@ describe("TSV / HTML clipboard", () => {
     expect(html).not.toMatch(/<tr><td><\/td><td>C/);
   });
 
+  it("cellsToHtml exports per-side borders with style", () => {
+    const html = cellsToHtml([
+      [
+        {
+          v: "x",
+          m: "x",
+          bd: {
+            t: { style: 2, color: "#ff0000" },
+            b: { style: 1, color: "#00ff00" },
+            l: { style: 8, color: "#0000ff" },
+            r: { style: 4, color: "#000000" },
+          },
+        },
+      ],
+    ]);
+    expect(html).toContain("border-top:1px dotted #ff0000");
+    expect(html).toContain("border-bottom:1px solid #00ff00");
+    expect(html).toContain("border-left:2px solid #0000ff");
+    expect(html).toContain("border-right:1px dashed #000000");
+  });
+
+  it("parseHtmlTable restores per-side borders", () => {
+    const { cells } = parseHtmlTable(
+      `<table><tr><td style="border-top:1px dotted #ff0000;border-left:2px solid #0000ff">x</td></tr></table>`,
+    );
+    expect(cells[0][0]?.bd?.t).toEqual({ style: 2, color: "#ff0000" });
+    expect(cells[0][0]?.bd?.l).toEqual({ style: 8, color: "#0000ff" });
+    expect(cells[0][0]?.bd?.b).toBeUndefined();
+  });
+
   it("cellsToHtml wraps table", () => {
     const html = cellsToHtml([
       [{ v: "x", m: "x", ct: { fa: "General", t: "g" } }],

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
 import type { WorkbookEngine } from "@luckysheet3/core";
+import ToolbarMenuCheck from "./ToolbarMenuCheck.vue";
 
 type Axis = "horizontal" | "vertical";
 
@@ -132,7 +133,7 @@ onUnmounted(() => {
           :title="item.title"
           @click="onPick(item.value)"
         >
-          <i class="ls3-toolbar__menu-check" :class="{ 'is-on': item.value === currentValue }" aria-hidden="true" />
+          <ToolbarMenuCheck :on="item.value === currentValue" />
           <span class="ls3-toolbar__menu-label">{{ item.title }}</span>
           <i
             class="iconfont-luckysheet ls3-toolbar__menu-icon"

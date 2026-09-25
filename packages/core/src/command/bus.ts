@@ -6,7 +6,7 @@ import { FormulaEngine } from "../formula/evaluator.js";
 import { displayValue } from "../model/cell.js";
 import { fillRange } from "../clipboard/clipboard.js";
 import { applyFormat } from "../clipboard/style.js";
-import { applyBorders } from "../border/borders.js";
+import { applyBorderType } from "../border/apply-border-type.js";
 import {
   applyFormatToCell,
   clearCellFormat,
@@ -350,10 +350,10 @@ export class CommandBus {
         });
       case "setBorders":
         return this.applyStructural(command, (sheet) => {
-          applyBorders(
+          applyBorderType(
             sheet,
             command.range,
-            command.mode,
+            command.borderType,
             command.color ?? "#000000",
             command.style ?? 1,
           );

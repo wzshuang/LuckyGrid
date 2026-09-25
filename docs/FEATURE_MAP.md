@@ -55,7 +55,7 @@
 | `keyboard.js`                         | 全套快捷键                 | `GridCanvas.vue` `onKeyDown`                                   | usable   | Ctrl+A/Shift 方向键已绑；仍缺大量格式快捷键 |
 | `select.js` / `selection.js`          | 选区高亮、名称框、多选           | `selection/range.ts` + engine select* + canvas-renderer + selectionToLabel | usable   | **A/B 已做** 选区/复制虚线/TSV·HTML 粘贴/格式刷/合并粘贴；仍缺保护、粘贴选项、协同框 |
 | `formulaBar.js`                       | 公式栏                   | `vue/components/FormulaBar.vue`                                | usable   | 公式编辑时选区引用插入、名称框跳转                        |
-| `toolbar.js`                          | 工具栏按钮编排               | `vue/components/Toolbar.vue`                                   | usable   | 按钮外观已对齐原版 iconfont；水平/垂直对齐为拆分+菜单，其余下拉/弹层仍无。见 §5 工具栏细项 |
+| `toolbar.js`                          | 工具栏按钮编排               | `vue/components/Toolbar.vue`                                   | usable   | 边框/对齐为拆分+菜单；合并类型等待。见 §5 工具栏细项 |
 | `menuButton.js`                       | 工具栏下拉 + 右键菜单          | —                                                              | none     | 右键菜单整体缺失                                 |
 | `constant.js`                         | HTML 字符串模板外壳          | `vue/components/LuckySheet.vue` 等                              | usable   | 结构已 Vue 化，无字符串模板                         |
 | `controlHistory.js`                   | 撤销重做                  | `core/command/bus.ts`                                          | usable   | 历史粒度/合并策略与原版不同                           |
@@ -106,7 +106,7 @@
 | --------------------------- | -------------------- | ---------------------------------- | ---------- | -------------------- |
 | `draw.js`                   | Canvas 视口绘制          | `render/canvas-renderer.ts`        | usable     | 溢出文字、条件格式绘制、批注角标、图表层 |
 | `location.js`               | 坐标 / hit-test        | `hit/location.ts`                  | usable     |                      |
-| `border.js`                 | 边框计算                 | `border/borders.ts`                | usable     | 线型全集、内侧/斜线           |
+| `border.js`                 | 边框计算                 | `border/apply-border-type.ts` + `materialize-border-info.ts` | usable     | borderInfo 加载/实时 compute 绘制/插删移位 |
 | `format.js`                 | 显示格式                 | `format/number-format.ts`          | skeleton   | 完整 Excel 格式串         |
 | `formula.js`                | 公式解析重算               | `formula/parser.ts` `evaluator.ts` | skeleton   | 依赖图精度、数组公式、命名区域      |
 | `api.js`                    | 109 公开 API           | `compat/index.ts` + engine 方法      | skeleton   | 绝大多数 API 未暴露         |
@@ -115,7 +115,7 @@
 | `refresh.js`                | 刷新网格                 | `requestPaint`                     | usable     |                      |
 | `getdata.js` / `setdata.js` | 读写单元格                | `model/sheet.ts`                   | usable     |                      |
 | `json.js`                   | JSON 处理              | `io/lucky-json.ts`                 | usable     | extras 大量只透传         |
-| `extend.js`                 | 行列扩展时维护 merge/border | `sheet` shiftRows/Cols             | usable     | borderInfo 随行列移位不完整  |
+| `extend.js`                 | 行列扩展时维护 merge/border | `sheet` shiftRows/Cols + `shiftBorderInfo*` | usable     | borderInfo 随插删行列移位 |
 | `createsheet.js`            | 建表                   | `workbook.addSheet`                | usable     |                      |
 | `createdom.js`              | 创建 DOM 外壳            | Vue 组件树                            | usable     |                      |
 | `cleargridelement.js`       | 清覆盖层                 | 编辑结束隐藏 input                       | skeleton   |                      |
@@ -188,7 +188,7 @@
 | 粗体/斜体         | usable   | 可切换                                  |
 | 删除线/下划线       | none     |                                      |
 | 文本色/填充色       | usable   | 原生 color input                       |
-| 边框            | usable   | all / outside / none                 |
+| 边框            | usable   | 拆分按钮 + 全类型菜单 + 系统取色 + 线型子菜单      |
 | 合并            | usable   | 缺合并类型菜单                              |
 | 水平/垂直对齐       | usable   | 拆分按钮 + 菜单（左/中/右、顶/中/底）              |
 | 自动换行/旋转       | none     |                                      |

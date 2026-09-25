@@ -14,6 +14,11 @@ import {
 } from "../hit/location.js";
 import { visibleCellRange } from "../layout/visible-range.js";
 import { GRID_THEME } from "./grid-theme.js";
+import { borderLineStroke } from "../border/border-line-stroke.js";
+import {
+  borderKey,
+  computeBorderInfoMap,
+} from "../border/materialize-border-info.js";
 
 function textDecorationLineYs(
   ty: number,
@@ -154,6 +159,13 @@ export class CanvasRenderer {
       );
     }
 
+    const borderMap = computeBorderInfoMap(sheet);
+    const useBorderInfo = borderMap.size > 0 || (Array.isArray(sheet.config.borderInfo) && sheet.config.borderInfo.length > 0);
+    const bdAt = (r: number, c: number): CellBorder | null => {
+      if (useBorderInfo) return borderMap.get(borderKey(r, c)) ?? null;
+      return sheet.getCell(r, c)?.bd ?? null;
+    };
+
     const paintCell = (r: number, c: number) => {
       if (sheet.hiddenRows.has(r)) return;
       if (sheet.isMergeCovered(r, c)) return;
@@ -168,14 +180,15 @@ export class CanvasRenderer {
       );
       const rect = toSurface(gridRect);
       const cell = sheet.getCell(gridRect.row, gridRect.col);
+      const bd = bdAt(gridRect.row, gridRect.col);
 
       if (cell?.bg) {
         ctx.fillStyle = cell.bg;
         ctx.fillRect(rect.x, rect.y, rect.width, rect.height);
       }
 
-      paintDefaultCellGridLines(ctx, rect);
-      paintCellBorders(ctx, rect, cell?.bd ?? null);
+      paintDefaultCellGridLines(ctx, rect, bd);
+      paintCellBorders(ctx, rect, bd, bdAt, gridRect.row, gridRect.col);
 
       const text = displayValue(cell);
       if (text) {
@@ -384,25 +397,127 @@ export class CanvasRenderer {
 function paintDefaultCellGridLines(
   ctx: CanvasRenderingContext2D,
   rect: { x: number; y: number; width: number; height: number },
+  bd: CellBorder | null,
 ): void {
   const x0 = rect.x;
   const y0 = rect.y;
   const x1 = rect.x + rect.width;
   const y1 = rect.y + rect.height;
+  const left = x0 + 0.5;
+  const right = x1 - 0.5;
+  const top = y0 + 0.5;
+  const bottom = y1 - 0.5;
+  const vY0 = bd?.t ? top : y0;
+  const vY1 = bd?.b ? bottom : y1;
+  const hX0 = bd?.l ? left : x0;
+  const hX1 = bd?.r ? right : x1;
   ctx.strokeStyle = GRID_THEME.cellGridLine;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(x1 - 0.5, y0);
-  ctx.lineTo(x1 - 0.5, y1);
-  ctx.moveTo(x0, y1 - 0.5);
-  ctx.lineTo(x1, y1 - 0.5);
+  ctx.moveTo(right, vY0);
+  ctx.lineTo(right, vY1);
+  ctx.moveTo(hX0, bottom);
+  ctx.lineTo(hX1, bottom);
   ctx.stroke();
+}
+
+function strokeBorderSide(
+  ctx: CanvasRenderingContext2D,
+  side: NonNullable<CellBorder[keyof CellBorder]>,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): void {
+  const { lineWidth, dash, dual, mediumAlign } = borderLineStroke(side.style ?? 1);
+  ctx.strokeStyle = side.color || "#000000";
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "miter";
+  ctx.setLineDash(dash);
+
+  const horizontal = Math.abs(y2 - y1) < 1e-6;
+  let ax1 = x1;
+  let ay1 = y1;
+  let ax2 = x2;
+  let ay2 = y2;
+  // Lucky Medium*: shift cross-axis by 0.5 so 2px stroke sits on pixel grid
+  if (mediumAlign) {
+    if (horizontal) {
+      ay1 -= 0.5;
+      ay2 -= 0.5;
+    } else {
+      ax1 -= 0.5;
+      ax2 -= 0.5;
+    }
+  }
+
+  const strokeSeg = (sx1: number, sy1: number, sx2: number, sy2: number) => {
+    ctx.beginPath();
+    ctx.moveTo(sx1, sy1);
+    ctx.lineTo(sx2, sy2);
+    ctx.stroke();
+  };
+
+  if (dual) {
+    // Double: two 1px parallels offset ±1 on the cross-axis
+    if (horizontal) {
+      strokeSeg(ax1, ay1 - 1, ax2, ay2 - 1);
+      strokeSeg(ax1, ay1 + 1, ax2, ay2 + 1);
+    } else {
+      strokeSeg(ax1 - 1, ay1, ax2 - 1, ay2);
+      strokeSeg(ax1 + 1, ay1, ax2 + 1, ay2);
+    }
+  } else {
+    strokeSeg(ax1, ay1, ax2, ay2);
+  }
+
+  ctx.setLineDash([]);
+  ctx.lineWidth = 1;
+}
+
+/** 与 paintDefaultCellGridLines 同一套边坐标，竖边向上多 1px（对齐 Luckysheet border*Render） */
+function borderEdgeCoords(rect: { x: number; y: number; width: number; height: number }) {
+  const x0 = rect.x;
+  const y0 = rect.y;
+  const x1 = rect.x + rect.width;
+  const y1 = rect.y + rect.height;
+  const left = x0 + 0.5;
+  const right = x1 - 0.5;
+  const top = y0 + 0.5;
+  const bottom = y1 - 0.5;
+  return { left, right, top, bottom, y0, y1 };
+}
+
+function willDrawTop(
+  bdAt: (r: number, c: number) => CellBorder | null,
+  row: number,
+  col: number,
+): boolean {
+  const bd = bdAt(row, col);
+  if (!bd?.t) return false;
+  const aboveBd = row > 0 ? bdAt(row - 1, col) : null;
+  return !aboveBd?.b;
+}
+
+function willDrawLeft(
+  bdAt: (r: number, c: number) => CellBorder | null,
+  row: number,
+  col: number,
+): boolean {
+  const bd = bdAt(row, col);
+  if (!bd?.l) return false;
+  const leftBd = col > 0 ? bdAt(row, col - 1) : null;
+  return !leftBd?.r;
 }
 
 function paintCellBorders(
   ctx: CanvasRenderingContext2D,
   rect: { x: number; y: number; width: number; height: number },
   bd: CellBorder | null,
+  bdAt: (r: number, c: number) => CellBorder | null,
+  row: number,
+  col: number,
 ): void {
   if (!bd) return;
   const draw = (
@@ -413,20 +528,29 @@ function paintCellBorders(
     y2: number,
   ) => {
     if (!side) return;
-    ctx.strokeStyle = side.color || "#000000";
-    ctx.lineWidth = side.style >= 2 ? 2 : 1;
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-    ctx.lineWidth = 1;
+    strokeBorderSide(ctx, side, x1, y1, x2, y2);
   };
-  const x0 = rect.x + 0.5;
-  const y0 = rect.y + 0.5;
-  const x1 = rect.x + rect.width - 0.5;
-  const y1 = rect.y + rect.height - 0.5;
-  draw(bd.t, x0, y0, x1, y0);
-  draw(bd.b, x0, y1, x1, y1);
-  draw(bd.l, x0, y0, x0, y1);
-  draw(bd.r, x1, y0, x1, y1);
+  const aboveBd = row > 0 ? bdAt(row - 1, col) : null;
+  const leftBd = col > 0 ? bdAt(row, col - 1) : null;
+  const { left, right, top, bottom, y0, y1 } = borderEdgeCoords(rect);
+  const drawTop = !!(bd.t && !aboveBd?.b);
+  const vTop = drawTop ? top : aboveBd?.b ? y0 - 1 : y0;
+  const belowDrawsRight = !!bdAt(row + 1, col)?.r;
+  const belowDrawsLeft = willDrawLeft(bdAt, row + 1, col);
+  const belowStartsAtTop = willDrawTop(bdAt, row + 1, col);
+  const vBottomRight =
+    belowDrawsRight && belowStartsAtTop ? y1 + 0.5 : bd.b ? bottom : y1;
+  const vBottomLeft =
+    belowDrawsLeft && belowStartsAtTop ? y1 + 0.5 : bd.b ? bottom : y1;
+  const nextLeftX = rect.x + rect.width + 0.5;
+  if (drawTop) {
+    const hEnd = willDrawTop(bdAt, row, col + 1) ? nextLeftX : right;
+    draw(bd.t, left, top, hEnd, top);
+  }
+  if (bd.b) {
+    const hEnd = bdAt(row, col + 1)?.b ? nextLeftX : right;
+    draw(bd.b, left, bottom, hEnd, bottom);
+  }
+  if (bd.l && !leftBd?.r) draw(bd.l, left, vTop, left, vBottomLeft);
+  draw(bd.r, right, vTop, right, vBottomRight);
 }

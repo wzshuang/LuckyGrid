@@ -9,6 +9,7 @@ import {
 } from "@luckysheet3/core";
 import FindReplaceDialog from "./FindReplaceDialog.vue";
 import ToolbarAlignSplit from "./ToolbarAlignSplit.vue";
+import ToolbarBorderSplit from "./ToolbarBorderSplit.vue";
 import ToolbarButton from "./ToolbarButton.vue";
 
 const props = defineProps<{
@@ -18,6 +19,7 @@ const props = defineProps<{
 
 const showFind = ref(false);
 const openAlignMenu = ref<null | "horizontal" | "vertical">(null);
+const openBorderMenu = ref(false);
 const fontColorInput = ref<HTMLInputElement | null>(null);
 const fillColorInput = ref<HTMLInputElement | null>(null);
 const fontSize = ref(10);
@@ -217,9 +219,16 @@ function onPaintClick() {
         @input="onFillColor"
       />
     </div>
-    <ToolbarButton icon="quanjiabiankuang" title="所有边框" @click="engine.applyBordersToSelection('all')" />
-    <ToolbarButton icon="sizhoujiabiankuang" title="外边框" @click="engine.applyBordersToSelection('outside')" />
-    <ToolbarButton icon="wubiankuang" title="无边框" @click="engine.applyBordersToSelection('none')" />
+    <ToolbarBorderSplit
+      :engine="engine"
+      :open="openBorderMenu"
+      @update:open="
+        (v) => {
+          openBorderMenu = v;
+          if (v) openAlignMenu = null;
+        }
+      "
+    />
     <ToolbarButton icon="hebing" title="合并单元格" @click="engine.mergeSelection()" />
     <ToolbarButton icon="quxiaohebing" title="取消合并" @click="engine.unmergeSelection()" />
     <span class="ls3-toolbar__sep" />
@@ -228,14 +237,24 @@ function onPaintClick() {
       :engine="engine"
       :chrome="chrome"
       :open="openAlignMenu === 'horizontal'"
-      @update:open="(v) => (openAlignMenu = v ? 'horizontal' : null)"
+      @update:open="
+        (v) => {
+          openAlignMenu = v ? 'horizontal' : null;
+          if (v) openBorderMenu = false;
+        }
+      "
     />
     <ToolbarAlignSplit
       axis="vertical"
       :engine="engine"
       :chrome="chrome"
       :open="openAlignMenu === 'vertical'"
-      @update:open="(v) => (openAlignMenu = v ? 'vertical' : null)"
+      @update:open="
+        (v) => {
+          openAlignMenu = v ? 'vertical' : null;
+          if (v) openBorderMenu = false;
+        }
+      "
     />
     <span class="ls3-toolbar__sep" />
     <ToolbarButton icon="hang" title="插入行" @click="engine.insertRowsAtSelection()" />

@@ -48,8 +48,18 @@ export { displayValue, cloneCell } from "./model/cell.js";
 export type { CellBorder, BorderSide } from "./model/cell.js";
 export { findNext, collectColumnValues } from "./find/find-replace.js";
 export type { Command as EngineCommand } from "./command/types.js";
-export { applyBorders } from "./border/borders.js";
-export type { BorderMode } from "./border/borders.js";
+export { applyBorders, applyBorderType } from "./border/borders.js";
+export {
+  materializeBorderInfo,
+  computeBorderInfoMap,
+  shiftBorderInfoRows,
+  shiftBorderInfoCols,
+} from "./border/materialize-border-info.js";
+export type { BorderMode, BorderInfoEntry } from "./border/borders.js";
+export type { BorderType } from "./border/types.js";
+export { BORDER_LINE_STYLES } from "./border/types.js";
+export { borderLineStroke } from "./border/border-line-stroke.js";
+export type { BorderLineStroke } from "./border/border-line-stroke.js";
 export {
   cellsToTsv,
   cellsToHtml,

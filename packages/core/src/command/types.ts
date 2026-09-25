@@ -129,7 +129,7 @@ export type Command =
   | {
       type: "setBorders";
       range: SelectionRange;
-      mode: "all" | "outside" | "none";
+      borderType: import("../border/types.js").BorderType;
       color?: string;
       style?: number;
       sheetIndex?: string | number;

@@ -1,5 +1,12 @@
 @import "../assets/iconfont/iconfont.css";
 
+@font-face {
+  font-family: ls3-fontawesome;
+  src: url("../assets/fonts/fontawesome-webfont.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+}
+
 .ls3-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -16,7 +23,7 @@
   box-sizing: border-box;
 }
 
-.ls3-toolbar .iconfont-luckysheet:not(.luckysheet-iconfont-xiayige) {
+.ls3-toolbar .iconfont-luckysheet:not(.luckysheet-iconfont-xiayige):not(.ls3-toolbar__menu-submenu-arrow) {
   font-size: 24px;
   line-height: 26px;
 }
@@ -186,6 +193,7 @@
   top: 100%;
   left: 0;
   z-index: 1004;
+  box-sizing: border-box;
   min-width: 120px;
   margin: 0;
   padding: 6px 0;
@@ -193,6 +201,12 @@
   background: #fff;
   border: 1px solid rgba(0, 0, 0, 0.2);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 水平/垂直对齐下拉（原版 #luckysheet-icon-align-menu-menuButton ≈122px） */
+.ls3-toolbar__split--align:not(.ls3-toolbar__split--border) .ls3-toolbar__menu {
+  width: 122px;
+  min-width: 122px;
 }
 
 .ls3-toolbar__menu-item {
@@ -216,7 +230,7 @@
   background: #efefef;
 }
 
-.ls3-toolbar__menu-item .iconfont-luckysheet {
+.ls3-toolbar__menu-item .iconfont-luckysheet:not(.ls3-toolbar__menu-submenu-arrow) {
   width: 26px;
   margin-right: 4px;
   font-size: 24px;
@@ -225,6 +239,44 @@
 
 .ls3-toolbar__menu-label {
   font-size: 13px;
+}
+
+/* 左侧勾选列：menuButton item 模板 span.icon（13px + margin-right:3px + 与文案间的空格） */
+.ls3-toolbar__menu-check {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 13px;
+  margin-right: 3px;
+  font-size: 13px;
+  line-height: 13px;
+  vertical-align: middle;
+  text-align: center;
+}
+
+.ls3-toolbar__menu-check-fa {
+  display: inline-block;
+  font: normal normal normal 13px/1 ls3-fontawesome;
+  font-size: inherit;
+  line-height: 1;
+  color: #333;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.ls3-toolbar__menu-check-fa::before {
+  content: "\f00c";
+}
+
+.ls3-toolbar__menu-check + .ls3-toolbar__menu-label {
+  margin-left: 0.27em;
+}
+
+.ls3-toolbar__menu-icon {
+  flex-shrink: 0;
+  width: 26px;
+  font-size: 24px;
+  line-height: 26px;
+  text-align: center;
 }
 
 .ls3-toolbar__swatch {
@@ -290,6 +342,172 @@
   white-space: nowrap;
   font-size: 11px;
   font-weight: 700;
+}
+
+.ls3-toolbar__menu-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: #ebebeb;
+  list-style: none;
+}
+
+.ls3-toolbar__menu--border {
+  width: 172px;
+  min-width: 172px;
+}
+
+/* cols-menuitem 1px+content 3px 垂直；item 左右 8px/24px + content 左 1px */
+.ls3-toolbar__split--align .ls3-toolbar__menu .ls3-toolbar__menu-item,
+.ls3-toolbar__menu-item--border-row {
+  height: auto;
+  min-height: 28px;
+  padding: 4px 24px 4px 9px;
+}
+
+.ls3-toolbar__menu-item--border-row {
+  display: flex;
+  align-items: center;
+}
+
+.ls3-toolbar__menu--border .ls3-toolbar__menu-item--border-row .ls3-toolbar__menu-label:not(.ls3-toolbar__menu-label--color):not(.ls3-toolbar__menu-label--border-size) {
+  flex: 1;
+  min-width: 0;
+}
+
+.ls3-toolbar__menu--border .ls3-toolbar__menu-icon--border {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.ls3-toolbar__menu--border .ls3-toolbar__menu-icon--border.iconfont-luckysheet {
+  margin-right: 0;
+}
+
+.ls3-toolbar__menu-item--color .ls3-toolbar__menu-label--color {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: max-content;
+  display: inline-block;
+  padding-bottom: 0;
+  font-size: 13px;
+  line-height: 1.2;
+  vertical-align: baseline;
+}
+
+.ls3-toolbar__menu-item--color {
+  align-items: center;
+}
+
+/* 「边框粗细」预览条：只在文字正下方，宽度随文字（同颜色下划线范围） */
+.ls3-toolbar__menu-item--border-size .ls3-toolbar__menu-label--border-size {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-block;
+  width: auto;
+  max-width: max-content;
+  padding-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.2;
+  vertical-align: baseline;
+}
+
+.ls3-toolbar__border-size-preview.ls3-toolbar__line-preview-canvas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: 3px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.ls3-toolbar__menu-item-wrap {
+  position: relative;
+  list-style: none;
+}
+
+.ls3-toolbar__menu-item--has-sub
+  .ls3-toolbar__menu-label:not(.ls3-toolbar__menu-label--color):not(
+    .ls3-toolbar__menu-label--border-size
+  ) {
+  flex: 1;
+}
+
+/* 子菜单箭头：原版为 iconfont 16px（非菜单行右侧 24px 边框示意图标） */
+.ls3-toolbar__menu-item .ls3-toolbar__menu-submenu-arrow.iconfont-luckysheet {
+  flex-shrink: 0;
+  margin-left: auto;
+  margin-right: 0;
+  width: auto;
+  min-width: 0;
+  padding-top: 1px;
+  font-size: 16px;
+  line-height: 16px;
+  text-align: right;
+  opacity: 0.5;
+  color: #000;
+}
+
+.ls3-toolbar__menu-item--sub-open,
+.ls3-toolbar__menu-item-wrap:hover > .ls3-toolbar__menu-item--has-sub {
+  background: #efefef;
+}
+
+.ls3-toolbar__menu--sub {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  z-index: 1;
+  min-width: 148px;
+  margin-left: -2px;
+  padding-left: 4px;
+}
+
+.ls3-toolbar__menu--sub-color {
+  min-width: 172px;
+  padding: 6px 0;
+}
+
+.ls3-toolbar__border-color-reset {
+  justify-content: flex-start;
+  height: auto;
+  min-height: 28px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.ls3-toolbar__border-color-picker {
+  display: block;
+  padding: 4px 12px 8px;
+}
+
+.ls3-toolbar__border-color-picker input[type="color"] {
+  display: block;
+  width: 100%;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #d4d4d4;
+  border-radius: 2px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.ls3-toolbar__menu-item--line .ls3-toolbar__line-preview-canvas {
+  flex: 1;
+  display: block;
+  width: 120px;
+  max-width: 120px;
+  height: 10px;
+  margin-right: 8px;
+}
+
+.ls3-toolbar__menu-item--line-none .ls3-toolbar__menu-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
 }
 
 .ls3-toolbar__combo-select {

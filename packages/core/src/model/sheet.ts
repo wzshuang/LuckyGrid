@@ -1,5 +1,10 @@
 import { cellKey, parseCellKey } from "./cell-key.js";
 import { type Cell, type CellData, cloneCell } from "./cell.js";
+import {
+  materializeBorderInfo,
+  shiftBorderInfoCols,
+  shiftBorderInfoRows,
+} from "../border/materialize-border-info.js";
 
 export interface MergeRange {
   r: number;
@@ -77,6 +82,7 @@ export class Sheet {
         }
       }
     }
+    materializeBorderInfo(this);
   }
 
   getCell(row: number, col: number): CellData | null {
@@ -201,6 +207,7 @@ export class Sheet {
     this.shiftMergeRows(index, count);
     this.shiftRowlen(index, count);
     this.shiftHiddenRows(index, count);
+    shiftBorderInfoRows(this, index, count);
   }
 
   deleteRows(index: number, count: number): void {
@@ -216,6 +223,7 @@ export class Sheet {
     this.shiftMergeRows(index, -count);
     this.shiftRowlen(index, -count);
     this.shiftHiddenRows(index, -count);
+    shiftBorderInfoRows(this, index, -count);
   }
 
   insertCols(index: number, count: number): void {
@@ -228,6 +236,7 @@ export class Sheet {
     this.colCount += count;
     this.shiftMergeCols(index, count);
     this.shiftColumnlen(index, count);
+    shiftBorderInfoCols(this, index, count);
   }
 
   deleteCols(index: number, count: number): void {
@@ -242,6 +251,7 @@ export class Sheet {
     this.colCount = Math.max(1, this.colCount - count);
     this.shiftMergeCols(index, -count);
     this.shiftColumnlen(index, -count);
+    shiftBorderInfoCols(this, index, -count);
   }
 
   private shiftMergeRows(index: number, delta: number): void {

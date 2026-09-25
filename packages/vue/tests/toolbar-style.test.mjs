@@ -12,6 +12,7 @@ const GLYPHS = [
   "houtui",
   "geshishua",
   "xiayige",
+  "youjiantou",
   "qingchuyangshi",
   "jiacu",
   "wenbenqingxie1",
@@ -102,6 +103,9 @@ describe("Toolbar.vue markup", () => {
     assert.match(sfc, /ls3-toolbar__combo--size/);
     assert.match(sfc, /ls3-toolbar__combo--format/);
     assert.match(sfc, /import ToolbarAlignSplit from "\.\/ToolbarAlignSplit\.vue"/);
+    assert.match(sfc, /import ToolbarBorderSplit from "\.\/ToolbarBorderSplit\.vue"/);
+    assert.match(sfc, /ToolbarBorderSplit/);
+    assert.doesNotMatch(sfc, /icon="quanjiabiankuang"/);
     assert.match(sfc, /axis="horizontal"/);
     assert.match(sfc, /axis="vertical"/);
     assert.doesNotMatch(sfc, /icon="wenbenzuoduiqi"/);
@@ -124,9 +128,6 @@ describe("Toolbar.vue markup", () => {
       "wenbenqingxie1",
       "wenbenshanchuxian",
       "wenbenxiahuaxian",
-      "quanjiabiankuang",
-      "sizhoujiabiankuang",
-      "wubiankuang",
       "hebing",
       "quxiaohebing",
       "hang",
@@ -143,6 +144,29 @@ describe("Toolbar.vue markup", () => {
 });
 
 const alignSplitPath = path.join(root, "src/components/ToolbarAlignSplit.vue");
+
+const borderSplitPath = path.join(root, "src/components/ToolbarBorderSplit.vue");
+
+describe("ToolbarBorderSplit.vue", () => {
+  it("defines border menu items and color input", () => {
+    const sfc = fs.readFileSync(borderSplitPath, "utf8");
+    assert.match(sfc, /border-top/);
+    assert.match(sfc, /border-inside/);
+    assert.match(sfc, /边框颜色/);
+    assert.match(sfc, /边框粗细/);
+    assert.match(sfc, /上框线/);
+    assert.match(sfc, /title: "无"/);
+    assert.match(sfc, /showSubPanel\('color'\)/);
+    assert.match(sfc, /showSubPanel\('style'\)/);
+    assert.match(sfc, /BORDER_LINE_STYLE_MENU/);
+    assert.match(sfc, /label: "无"/);
+    assert.match(sfc, /luckysheet-iconfont-youjiantou/);
+    assert.match(sfc, /ToolbarBorderLinePreview/);
+    assert.match(sfc, /ls3-toolbar__border-size-preview/);
+    assert.match(sfc, /BORDER_MENU_SIZE_PREVIEW_W/);
+    assert.match(sfc, /menu-label--border-size/);
+  });
+});
 
 describe("ToolbarAlignSplit.vue", () => {
   it("merges horizontal and vertical align into split menus", () => {

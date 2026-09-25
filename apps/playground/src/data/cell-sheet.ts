@@ -3,7 +3,7 @@ import sheetCellRaw from "../../../../fixtures/lucky/sheet-cell.json";
 
 /**
  * 原版 LuckysheetDemo `demoData/sheetCell.js` 导出为 JSON，供对比页直接 load。
- * 仅去掉引擎不认识的字段；不伪造 borderInfo / 跨表公式等未支持能力。
+ * 仅去掉引擎不认识的字段；borderInfo 在 Sheet 加载时展开为 cell.bd。
  */
 export function cellSheetForCompare(): LuckySheetRaw[] {
   const sheet = structuredClone(sheetCellRaw) as LuckySheetRaw;
@@ -18,8 +18,6 @@ export function cellSheetForCompare(): LuckySheetRaw[] {
 
 /** 对比时右侧预期无法 1:1 还原的能力（便于肉眼找差距） */
 export const CELL_SHEET_KNOWN_GAPS = [
-  "config.borderInfo 单元格/区域边框（当前仅支持手动 bd / 工具栏边框）",
   "跨工作表引用（如 =Formula!D3+Formula!D4，未加载 Formula 页）",
   "条件格式、数据验证、批注、图片等 sheet 扩展字段",
-  "部分边框线型 style 9/10 等与原版像素级差异",
 ] as const;

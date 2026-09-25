@@ -174,8 +174,7 @@ function parseInlineStyle(attrs: string): Partial<CellData> {
 function parseStyleString(style: string): Partial<CellData> {
   const out: Partial<CellData> = {};
   const parts = style.split(";").map((s) => s.trim()).filter(Boolean);
-  let borderColor: string | undefined;
-  let hasBorder = false;
+  const bd: NonNullable<CellData["bd"]> = {};
   for (const part of parts) {
     const idx = part.indexOf(":");
     if (idx < 0) continue;
@@ -202,16 +201,29 @@ function parseStyleString(style: string): Partial<CellData> {
       if (val === "left") out.ht = 1;
       else if (val === "center") out.ht = 0;
       else if (val === "right") out.ht = 2;
-    } else if (prop.startsWith("border")) {
-      hasBorder = true;
-      const c = normalizeColor(val.split(/\s+/).pop() ?? "");
-      if (c) borderColor = c;
+    } else if (prop === "border") {
+      const side = parseCssBorderSide(val);
+      if (side) {
+        bd.t = side;
+        bd.b = side;
+        bd.l = side;
+        bd.r = side;
+      }
+    } else if (prop === "border-top") {
+      const side = parseCssBorderSide(val);
+      if (side) bd.t = side;
+    } else if (prop === "border-bottom") {
+      const side = parseCssBorderSide(val);
+      if (side) bd.b = side;
+    } else if (prop === "border-left") {
+      const side = parseCssBorderSide(val);
+      if (side) bd.l = side;
+    } else if (prop === "border-right") {
+      const side = parseCssBorderSide(val);
+      if (side) bd.r = side;
     }
   }
-  if (hasBorder) {
-    const side = { style: 1, color: borderColor ?? "#000000" };
-    out.bd = { t: side, b: side, l: side, r: side };
-  }
+  if (Object.keys(bd).length) out.bd = bd;
   return out;
 }
 
@@ -229,8 +241,54 @@ function formatInlineStyle(cell: CellData): string {
   if (cell.ht === 1) bits.push("text-align:left");
   else if (cell.ht === 0) bits.push("text-align:center");
   else if (cell.ht === 2) bits.push("text-align:right");
-  if (cell.bd?.t) bits.push(`border:1px solid ${cell.bd.t.color}`);
+  if (cell.bd) {
+    if (cell.bd.t) bits.push(`border-top:${cssBorderSide(cell.bd.t)}`);
+    if (cell.bd.b) bits.push(`border-bottom:${cssBorderSide(cell.bd.b)}`);
+    if (cell.bd.l) bits.push(`border-left:${cssBorderSide(cell.bd.l)}`);
+    if (cell.bd.r) bits.push(`border-right:${cssBorderSide(cell.bd.r)}`);
+  }
   return bits.join(";");
+}
+
+/** Map Lucky border style → CSS width + line-style */
+function cssBorderSide(side: { style: number; color: string }): string {
+  const color = side.color || "#000000";
+  const s = side.style ?? 1;
+  if (s === 7) return `3px double ${color}`;
+  if (s === 13) return `3px solid ${color}`;
+  if (s === 8) return `2px solid ${color}`;
+  if (s === 9) return `2px dashed ${color}`;
+  if (s === 10 || s === 11) return `2px dashed ${color}`;
+  if (s === 2 || s === 3) return `1px dotted ${color}`;
+  if (s === 4 || s === 5 || s === 6 || s === 12) return `1px dashed ${color}`;
+  return `1px solid ${color}`;
+}
+
+function parseCssBorderSide(val: string): { style: number; color: string } | null {
+  const tokens = val.trim().split(/\s+/);
+  if (tokens.length === 0) return null;
+  let widthPx = 1;
+  let line: string | undefined;
+  let color: string | undefined;
+  for (const t of tokens) {
+    if (/^\d+(\.\d+)?px$/i.test(t)) widthPx = parseFloat(t);
+    else if (/^(solid|dashed|dotted|double|none)$/i.test(t)) line = t.toLowerCase();
+    else {
+      const c = normalizeColor(t);
+      if (c) color = c;
+    }
+  }
+  if (!line || line === "none") return null;
+  let style = 1;
+  if (line === "double") style = 7;
+  else if (line === "dotted") style = widthPx >= 2 ? 2 : 2;
+  else if (line === "dashed") style = widthPx >= 2 ? 9 : 4;
+  else if (line === "solid") {
+    if (widthPx >= 3) style = 13;
+    else if (widthPx >= 2) style = 8;
+    else style = 1;
+  }
+  return { style, color: color ?? "#000000" };
 }
 
 function normalizeColor(raw: string): string | undefined {

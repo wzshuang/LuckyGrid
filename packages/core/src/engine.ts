@@ -1,3 +1,4 @@
+import type { BorderType } from "./border/types.js";
 import { Workbook, type LuckyOp, type PaintMode, type SelectionRange, type WorkbookListener } from "./model/workbook.js";
 import type { SheetSnapshot } from "./model/sheet.js";
 import type { CellData } from "./model/cell.js";
@@ -821,13 +822,13 @@ export class WorkbookEngine {
   }
 
   applyBordersToSelection(
-    mode: "all" | "outside" | "none",
+    borderType: BorderType,
     color = "#000000",
     style = 1,
   ): void {
     const sel = this.getActiveRange();
     if (!sel) return;
-    this.execute({ type: "setBorders", range: sel, mode, color, style });
+    this.execute({ type: "setBorders", range: sel, borderType, color, style });
   }
 
   addSheet(name?: string): void {
