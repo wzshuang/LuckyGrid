@@ -123,7 +123,7 @@
 | `validate.js`               | 校验                   | —                                  | none       |                      |
 | `dynamicArray.js`           | 动态数组                 | —                                  | none       |                      |
 | `datecontroll.js`           | 日期                   | format 日期预设部分                      | skeleton   |                      |
-| `getRowlen.js`              | 自适应行高                | —                                  | none       |                      |
+| `getRowlen.js`              | 自适应行高                | `text/row-height.ts` `measureRowHeight` / `recalcRowHeights` | usable     | 选区/编辑路径触发行高重算，非全表扫描 |
 | `rhchInit.js`               | 行列头初始化               | renderer 内联                        | usable     |                      |
 | `count.js`                  | 计数统计栏                | —                                  | none       |                      |
 | `analysis.js`               | 分析相关                 | —                                  | none       |                      |
@@ -191,7 +191,7 @@
 | 边框            | usable   | 拆分按钮 + 全类型菜单 + 系统取色 + 线型子菜单      |
 | 合并            | usable   | 缺合并类型菜单                              |
 | 水平/垂直对齐       | usable   | 拆分按钮 + 菜单（左/中/右、顶/中/底）              |
-| 自动换行/旋转       | none     |                                      |
+| 自动换行/旋转       | usable   | 拆分按钮 + `tb`/`tr` + text-layout 渲染与行高 |
 | 冻结            | usable   |                                      |
 | 排序和筛选         | skeleton | 仅 filter API                         |
 | 查找替换          | usable   |                                      |
