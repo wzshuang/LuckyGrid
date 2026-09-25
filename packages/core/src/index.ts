@@ -107,3 +107,5 @@ export type {
   TextGlyph,
   CellTextLayout,
 } from "./text/types.js";
+export { layoutCellText } from "./text/text-layout.js";
+export type { LayoutCellTextInput } from "./text/text-layout.js";
