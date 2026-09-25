@@ -109,3 +109,5 @@ export type {
 } from "./text/types.js";
 export { layoutCellText } from "./text/text-layout.js";
 export type { LayoutCellTextInput } from "./text/text-layout.js";
+export { scanOverflowSpan } from "./text/overflow.js";
+export { measureRowHeight, recalcRowHeights } from "./text/row-height.js";
