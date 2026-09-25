@@ -35,6 +35,14 @@ const GLYPHS = [
   "jian1",
   "lie",
   "yichu1",
+  "zidonghuanhang",
+  "jieduan",
+  "wuxuanzhuang",
+  "xiangshangqingxie",
+  "xiangxiaqingxie",
+  "shupaiwenzi",
+  "wenbenxiangshang",
+  "xiangxia90",
   "dongjie1",
   "dongjie",
   "qingchu",
@@ -105,6 +113,8 @@ describe("Toolbar.vue markup", () => {
     assert.match(sfc, /import ToolbarAlignSplit from "\.\/ToolbarAlignSplit\.vue"/);
     assert.match(sfc, /import ToolbarBorderSplit from "\.\/ToolbarBorderSplit\.vue"/);
     assert.match(sfc, /ToolbarBorderSplit/);
+    assert.match(sfc, /ToolbarTextWrapSplit/);
+    assert.match(sfc, /ToolbarTextRotateSplit/);
     assert.doesNotMatch(sfc, /icon="quanjiabiankuang"/);
     assert.match(sfc, /axis="horizontal"/);
     assert.match(sfc, /axis="vertical"/);
@@ -182,5 +192,28 @@ describe("ToolbarAlignSplit.vue", () => {
     assert.match(sfc, /title: "左对齐"/);
     assert.match(sfc, /applyStyleToSelection\(\{ ht: value \}\)/);
     assert.match(sfc, /applyStyleToSelection\(\{ vt: value \}\)/);
+  });
+});
+
+const wrapPath = path.join(root, "src/components/ToolbarTextWrapSplit.vue");
+const rotatePath = path.join(root, "src/components/ToolbarTextRotateSplit.vue");
+
+describe("ToolbarTextWrapSplit.vue", () => {
+  it("has three wrap modes and applies tb", () => {
+    const sfc = fs.readFileSync(wrapPath, "utf8");
+    assert.match(sfc, /溢出/);
+    assert.match(sfc, /自动换行/);
+    assert.match(sfc, /截断/);
+    assert.match(sfc, /applyStyleToSelection\(\{\s*tb:/);
+  });
+});
+
+describe("ToolbarTextRotateSplit.vue", () => {
+  it("has six rotate modes and applies tr", () => {
+    const sfc = fs.readFileSync(rotatePath, "utf8");
+    assert.match(sfc, /无旋转/);
+    assert.match(sfc, /竖排文字/);
+    assert.match(sfc, /向上90/);
+    assert.match(sfc, /applyStyleToSelection\(\{\s*tr:/);
   });
 });

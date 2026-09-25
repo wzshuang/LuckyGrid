@@ -10,6 +10,8 @@ import {
 import FindReplaceDialog from "./FindReplaceDialog.vue";
 import ToolbarAlignSplit from "./ToolbarAlignSplit.vue";
 import ToolbarBorderSplit from "./ToolbarBorderSplit.vue";
+import ToolbarTextWrapSplit from "./ToolbarTextWrapSplit.vue";
+import ToolbarTextRotateSplit from "./ToolbarTextRotateSplit.vue";
 import ToolbarButton from "./ToolbarButton.vue";
 
 const props = defineProps<{
@@ -20,6 +22,7 @@ const props = defineProps<{
 const showFind = ref(false);
 const openAlignMenu = ref<null | "horizontal" | "vertical">(null);
 const openBorderMenu = ref(false);
+const openTextMenu = ref<null | "wrap" | "rotate">(null);
 const fontColorInput = ref<HTMLInputElement | null>(null);
 const fillColorInput = ref<HTMLInputElement | null>(null);
 const fontSize = ref(10);
@@ -225,7 +228,10 @@ function onPaintClick() {
       @update:open="
         (v) => {
           openBorderMenu = v;
-          if (v) openAlignMenu = null;
+          if (v) {
+            openAlignMenu = null;
+            openTextMenu = null;
+          }
         }
       "
     />
@@ -240,7 +246,10 @@ function onPaintClick() {
       @update:open="
         (v) => {
           openAlignMenu = v ? 'horizontal' : null;
-          if (v) openBorderMenu = false;
+          if (v) {
+            openBorderMenu = false;
+            openTextMenu = null;
+          }
         }
       "
     />
@@ -252,7 +261,38 @@ function onPaintClick() {
       @update:open="
         (v) => {
           openAlignMenu = v ? 'vertical' : null;
-          if (v) openBorderMenu = false;
+          if (v) {
+            openBorderMenu = false;
+            openTextMenu = null;
+          }
+        }
+      "
+    />
+    <ToolbarTextWrapSplit
+      :engine="engine"
+      :chrome="chrome"
+      :open="openTextMenu === 'wrap'"
+      @update:open="
+        (v) => {
+          openTextMenu = v ? 'wrap' : null;
+          if (v) {
+            openAlignMenu = null;
+            openBorderMenu = false;
+          }
+        }
+      "
+    />
+    <ToolbarTextRotateSplit
+      :engine="engine"
+      :chrome="chrome"
+      :open="openTextMenu === 'rotate'"
+      @update:open="
+        (v) => {
+          openTextMenu = v ? 'rotate' : null;
+          if (v) {
+            openAlignMenu = null;
+            openBorderMenu = false;
+          }
         }
       "
     />
