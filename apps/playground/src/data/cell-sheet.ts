@@ -1,12 +1,12 @@
-import type { LuckySheetRaw } from "@luckysheet3/core";
+import type { LuckyGridRaw } from "@luckygrid/core";
 import sheetCellRaw from "../../../../fixtures/lucky/sheet-cell.json";
 
 /**
  * 原版 LuckysheetDemo `demoData/sheetCell.js` 导出为 JSON，供对比页直接 load。
  * 仅去掉引擎不认识的字段；borderInfo 在 Sheet 加载时展开为 cell.bd。
  */
-export function cellSheetForCompare(): LuckySheetRaw[] {
-  const sheet = structuredClone(sheetCellRaw) as LuckySheetRaw;
+export function cellSheetForCompare(): LuckyGridRaw[] {
+  const sheet = structuredClone(sheetCellRaw) as LuckyGridRaw;
   for (const item of sheet.celldata ?? []) {
     const v = item.v as Record<string, unknown> | null | undefined;
     if (v && typeof v === "object" && "customKey" in v) {

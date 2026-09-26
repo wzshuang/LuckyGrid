@@ -9,13 +9,13 @@ export default [
           paths: [
             {
               name: "vue",
-              message: "@luckysheet3/core must stay framework-agnostic. Do not import vue.",
+              message: "@luckygrid/core must stay framework-agnostic. Do not import vue.",
             },
           ],
           patterns: [
             {
               group: ["vue/*", "@vue/*"],
-              message: "@luckysheet3/core must stay framework-agnostic. Do not import vue.",
+              message: "@luckygrid/core must stay framework-agnostic. Do not import vue.",
             },
           ],
         },

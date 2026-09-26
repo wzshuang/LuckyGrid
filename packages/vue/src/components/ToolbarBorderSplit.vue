@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import type { WorkbookEngine } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
 import ToolbarMenuCheck from "./ToolbarMenuCheck.vue";
 import ToolbarBorderLinePreview from "./ToolbarBorderLinePreview.vue";
 import {

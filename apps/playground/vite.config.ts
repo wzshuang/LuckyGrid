@@ -79,9 +79,9 @@ export default defineConfig({
   plugins: [vue(), serveLuckysheetDemo("/luckysheet-original")],
   resolve: {
     alias: {
-      "@luckysheet3/core": resolve(__dirname, "../../packages/core/src/index.ts"),
-      "@luckysheet3/vue": resolve(__dirname, "../../packages/vue/src/index.ts"),
-      "@luckysheet3/compat": resolve(__dirname, "../../packages/compat/src/index.ts"),
+      "@luckygrid/core": resolve(__dirname, "../../packages/core/src/index.ts"),
+      "@luckygrid/vue": resolve(__dirname, "../../packages/vue/src/index.ts"),
+      "@luckygrid/compat": resolve(__dirname, "../../packages/compat/src/index.ts"),
     },
   },
   server: {

@@ -8,15 +8,40 @@ importers:
 
   .: {}
 
-  apps/playground:
+  apps/gh-pages-demo:
     dependencies:
-      '@luckysheet3/compat':
+      '@luckygrid/compat':
         specifier: workspace:*
         version: link:../../packages/compat
-      '@luckysheet3/core':
+      '@luckygrid/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@luckysheet3/vue':
+      '@luckygrid/vue':
+        specifier: workspace:*
+        version: link:../../packages/vue
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.43(typescript@5.8.2)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: ^5.2.1
+        version: 5.2.1(vite@6.4.3)(vue@3.5.43(typescript@5.8.2))
+      typescript:
+        specifier: ^5.8.2
+        version: 5.8.2
+      vite:
+        specifier: ^6.2.2
+        version: 6.4.3
+
+  apps/playground:
+    dependencies:
+      '@luckygrid/compat':
+        specifier: workspace:*
+        version: link:../../packages/compat
+      '@luckygrid/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@luckygrid/vue':
         specifier: workspace:*
         version: link:../../packages/vue
       vue:
@@ -38,10 +63,10 @@ importers:
 
   packages/compat:
     dependencies:
-      '@luckysheet3/core':
+      '@luckygrid/core':
         specifier: workspace:*
         version: link:../core
-      '@luckysheet3/vue':
+      '@luckygrid/vue':
         specifier: workspace:*
         version: link:../vue
       vue:
@@ -69,7 +94,7 @@ importers:
 
   packages/vue:
     dependencies:
-      '@luckysheet3/core':
+      '@luckygrid/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:

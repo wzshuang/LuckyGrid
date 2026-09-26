@@ -2,7 +2,7 @@ import type { SheetSnapshot } from "../model/sheet.js";
 import type { CellData } from "../model/cell.js";
 
 /** Raw Luckysheet sheet object (subset + extras) */
-export type LuckySheetRaw = {
+export type LuckyGridRaw = {
   name?: string;
   index?: string | number;
   order?: number | string;
@@ -27,7 +27,7 @@ const KNOWN = new Set([
   "column",
 ]);
 
-export function fromLuckyFile(raw: LuckySheetRaw[] | LuckySheetRaw): SheetSnapshot[] {
+export function fromLuckyFile(raw: LuckyGridRaw[] | LuckyGridRaw): SheetSnapshot[] {
   const list = Array.isArray(raw) ? raw : [raw];
   return list.map((sheet, i) => {
     const extras: Record<string, unknown> = {};
@@ -68,9 +68,9 @@ export function fromLuckyFile(raw: LuckySheetRaw[] | LuckySheetRaw): SheetSnapsh
   });
 }
 
-export function toLuckyFile(snapshots: SheetSnapshot[]): LuckySheetRaw[] {
+export function toLuckyFile(snapshots: SheetSnapshot[]): LuckyGridRaw[] {
   return snapshots.map((s) => {
-    const out: LuckySheetRaw = {
+    const out: LuckyGridRaw = {
       name: s.name,
       index: s.index,
       order: s.order,

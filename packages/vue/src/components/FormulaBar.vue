@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
-import type { WorkbookEngine } from "@luckysheet3/core";
-import { selectionToLabel } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
+import { selectionToLabel } from "@luckygrid/core";
 
 const props = defineProps<{
   engine: WorkbookEngine;

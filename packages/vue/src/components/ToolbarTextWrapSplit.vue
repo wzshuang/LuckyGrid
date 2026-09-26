@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
-import type { WorkbookEngine } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
 import ToolbarMenuCheck from "./ToolbarMenuCheck.vue";
 
 type WrapItem = {

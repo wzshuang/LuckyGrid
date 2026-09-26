@@ -1,0 +1,47 @@
+name: Deploy gh-pages demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: gh-pages-demo
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.22.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build site demo
+        run: pnpm --filter @luckygrid/gh-pages-demo build
+        env:
+          BASE_PATH: /LuckyGrid/
+
+      - name: SPA fallback for client routes
+        run: cp apps/gh-pages-demo/dist/index.html apps/gh-pages-demo/dist/404.html
+
+      - name: Publish to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./apps/gh-pages-demo/dist
+          publish_branch: gh-pages
+          force_orphan: true

@@ -7,15 +7,15 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, "src/index.ts"),
-      name: "Luckysheet3Vue",
+      name: "LuckyGridVue",
       formats: ["es", "cjs"],
       fileName: (format) => (format === "es" ? "index.js" : "index.cjs"),
     },
     rollupOptions: {
-      external: ["vue", "@luckysheet3/core"],
+      external: ["vue", "@luckygrid/core"],
       output: {
         exports: "named",
-        assetFileNames: "luckysheet3-vue.[ext]",
+        assetFileNames: "LuckyGrid-vue.[ext]",
       },
     },
     cssCodeSplit: false,

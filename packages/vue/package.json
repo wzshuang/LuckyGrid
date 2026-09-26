@@ -1,6 +1,7 @@
 {
-  "name": "@luckysheet3/vue",
+  "name": "@luckygrid/vue",
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -11,7 +12,7 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
-    "./style.css": "./dist/luckysheet3-vue.css"
+    "./style.css": "./dist/LuckyGrid-vue.css"
   },
   "files": ["dist"],
   "scripts": {
@@ -23,7 +24,7 @@
     "vue": "^3.5.0"
   },
   "dependencies": {
-    "@luckysheet3/core": "workspace:*"
+    "@luckygrid/core": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",

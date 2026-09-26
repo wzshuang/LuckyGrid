@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-import { luckysheet } from "@luckysheet3/compat";
+import luckygrid, { luckysheet } from "@luckygrid/compat";
 import sheetMini from "../../../../fixtures/lucky/sheet-mini.json";
 
 const log = ref("");
 
 onMounted(() => {
-  luckysheet.create({
-    container: "luckysheet-compat",
+  luckygrid.create({
+    container: "luckygrid-compat",
     data: [sheetMini as never],
     onOp: (op) => {
       console.log("op", op);
@@ -16,30 +16,36 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  luckysheet.destroy("luckysheet-compat");
+  luckygrid.destroy("luckygrid-compat");
 });
 
 function read() {
-  log.value = String(luckysheet.getCellValue(0, 0));
+  log.value = String(luckygrid.getCellValue(0, 0));
 }
 
 function write() {
-  luckysheet.setCellValue(0, 0, 99);
+  luckygrid.setCellValue(0, 0, 99);
   read();
+}
+
+function readLegacy() {
+  log.value = String(luckysheet.getCellValue(0, 0));
 }
 </script>
 
 <template>
   <div class="compat">
     <p>
-      旧式 <code>luckysheet.create / getCellValue / setCellValue</code>（尽力兼容，非完整 API）。
+      推荐 <code>luckygrid.create / getCellValue / setCellValue</code>；<code>luckysheet.*</code>
+      为同一 API 的别名（非完整原版 API）。
     </p>
     <div class="compat__actions">
-      <button type="button" @click="read">getCellValue(0,0)</button>
+      <button type="button" @click="read">luckygrid.getCellValue(0,0)</button>
+      <button type="button" @click="readLegacy">luckysheet.getCellValue(0,0)</button>
       <button type="button" @click="write">setCellValue(0,0,99)</button>
       <span>{{ log }}</span>
     </div>
-    <div id="luckysheet-compat" class="compat__host" />
+    <div id="luckygrid-compat" class="compat__host" />
   </div>
 </template>
 
@@ -54,6 +60,7 @@ function write() {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .compat__host {
   flex: 1;

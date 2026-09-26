@@ -5,7 +5,7 @@ import { RouterLink, RouterView } from "vue-router";
 <template>
   <div class="app">
     <header class="app__header">
-      <strong>Luckysheet3 MVP</strong>
+      <strong>LuckyGrid MVP</strong>
       <nav>
         <RouterLink to="/">原版对比</RouterLink>
         <RouterLink to="/compat">Compat API</RouterLink>

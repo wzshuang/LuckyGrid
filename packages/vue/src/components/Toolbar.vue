@@ -6,7 +6,7 @@ import {
   activeCellFormatId,
   type FormatPresetId,
   type WorkbookEngine,
-} from "@luckysheet3/core";
+} from "@luckygrid/core";
 import FindReplaceDialog from "./FindReplaceDialog.vue";
 import ToolbarAlignSplit from "./ToolbarAlignSplit.vue";
 import ToolbarBorderSplit from "./ToolbarBorderSplit.vue";

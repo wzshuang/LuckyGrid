@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import type { WorkbookEngine } from "@luckysheet3/core";
-import { COL_HEADER_HEIGHT, ROW_HEADER_WIDTH, cellCanvasFont } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
+import { COL_HEADER_HEIGHT, ROW_HEADER_WIDTH, cellCanvasFont } from "@luckygrid/core";
 
 const props = defineProps<{
   engine: WorkbookEngine;

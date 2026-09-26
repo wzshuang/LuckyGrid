@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
-import type { WorkbookEngine } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
 
 const props = defineProps<{ engine: WorkbookEngine }>();
 const emit = defineEmits<{ close: [] }>();

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { LuckySheet } from "@luckysheet3/vue";
+import { LuckyGrid } from "@luckygrid/vue";
 import { cellSheetForCompare, CELL_SHEET_KNOWN_GAPS } from "../data/cell-sheet";
 
 const cellSheets = cellSheetForCompare();
@@ -16,7 +16,7 @@ const originalDemoUrl = computed(
 <template>
   <div class="compare">
     <p class="compare__hint">
-      左：原版 Demo（请切换到第一个 Sheet「Cell」）；右：Luckysheet3 直接加载同一份
+      左：原版 Demo（请切换到第一个 Sheet「Cell」）；右：LuckyGrid 直接加载同一份
       <code>sheetCell</code> JSON（<code>fixtures/lucky/sheet-cell.json</code>）。未实现的能力保留在数据里但不强行模拟，方便对照差距。
     </p>
     <details class="compare__gaps">
@@ -39,10 +39,10 @@ const originalDemoUrl = computed(
       </section>
       <section class="compare__pane">
         <header class="compare__head">
-          <h2>Luckysheet3 · Cell（同源数据）</h2>
+          <h2>LuckyGrid · Cell（同源数据）</h2>
         </header>
         <div class="compare__sheet">
-          <LuckySheet :data="cellSheets" />
+          <LuckyGrid :data="cellSheets" />
         </div>
       </section>
     </div>

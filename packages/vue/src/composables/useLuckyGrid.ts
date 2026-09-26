@@ -1,17 +1,17 @@
 import { inject, type InjectionKey, type ShallowRef } from "vue";
-import type { WorkbookEngine } from "@luckysheet3/core";
+import type { WorkbookEngine } from "@luckygrid/core";
 
 export const LUCKY_ENGINE_KEY: InjectionKey<ShallowRef<WorkbookEngine | null>> =
-  Symbol("luckysheet3-engine");
+  Symbol("luckygrid-engine");
 
-export function useLuckySheet(): WorkbookEngine {
+export function useLuckyGrid(): WorkbookEngine {
   const engineRef = inject(LUCKY_ENGINE_KEY);
   if (!engineRef?.value) {
-    throw new Error("useLuckySheet() must be used inside <LuckySheet>");
+    throw new Error("useLuckyGrid() must be used inside <LuckyGrid>");
   }
   return engineRef.value;
 }
 
-export function useLuckySheetOptional(): WorkbookEngine | null {
+export function useLuckyGridOptional(): WorkbookEngine | null {
   return inject(LUCKY_ENGINE_KEY)?.value ?? null;
 }

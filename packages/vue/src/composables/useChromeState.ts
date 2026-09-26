@@ -2,7 +2,7 @@ import { onMounted, onUnmounted, shallowRef, type ShallowRef } from "vue";
 import type {
   SelectionRange,
   WorkbookEngine,
-} from "@luckysheet3/core";
+} from "@luckygrid/core";
 
 export type ChromeState = {
   selection: ShallowRef<SelectionRange[]>;

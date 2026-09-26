@@ -3,11 +3,11 @@
  * Does NOT implement the full 109-function surface — only create/destroy/getCellValue/setCellValue.
  */
 import { createApp, h, type App } from "vue";
-import { LuckySheet } from "@luckysheet3/vue";
+import { LuckyGrid } from "@luckygrid/vue";
 import {
   WorkbookEngine,
-  type LuckySheetRaw,
-} from "@luckysheet3/core";
+  type LuckyGridRaw,
+} from "@luckygrid/core";
 
 type Instance = {
   app: App;
@@ -19,7 +19,7 @@ let lastContainer: HTMLElement | null = null;
 
 export type CreateOptions = {
   container: string | HTMLElement;
-  data?: LuckySheetRaw[];
+  data?: LuckyGridRaw[];
   lang?: string;
   /** Called with collaborative ops (no WebSocket) */
   onOp?: (op: unknown) => void;
@@ -43,7 +43,7 @@ export function create(options: CreateOptions): void {
 
   const app = createApp({
     render: () =>
-      h(LuckySheet, {
+      h(LuckyGrid, {
         engine,
         lang: options.lang ?? "zh",
       }),
@@ -78,7 +78,7 @@ function resolveEngine(container?: string | HTMLElement): WorkbookEngine {
       : typeof container === "string"
         ? document.getElementById(container)
         : container;
-  if (!el) throw new Error("No luckysheet instance");
+  if (!el) throw new Error("No luckygrid instance");
   const inst = registry.get(el);
   if (!inst) throw new Error("Engine not ready");
   return inst.engine;
@@ -103,12 +103,14 @@ export function setCellValue(
   eng.setCellValue(row, column, value);
 }
 
-/** Namespace object mimicking global `luckysheet` */
-export const luckysheet = {
+const luckygrid = {
   create,
   destroy,
   getCellValue,
   setCellValue,
 };
 
-export default luckysheet;
+/** Legacy alias for Luckysheet-style global name */
+export const luckysheet = luckygrid;
+
+export default luckygrid;

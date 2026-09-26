@@ -3,11 +3,11 @@ import { onMounted, onUnmounted, provide, shallowRef, watch } from "vue";
 import {
   WorkbookEngine,
   type LuckyOp,
-  type LuckySheetRaw,
+  type LuckyGridRaw,
   type SelectionRange,
   type SheetSnapshot,
-} from "@luckysheet3/core";
-import { LUCKY_ENGINE_KEY } from "../composables/useLuckySheet";
+} from "@luckygrid/core";
+import { LUCKY_ENGINE_KEY } from "../composables/useLuckyGrid";
 import { useChromeState } from "../composables/useChromeState";
 import GridCanvas from "./GridCanvas.vue";
 import CellEditor from "./CellEditor.vue";
@@ -17,7 +17,7 @@ import SheetBar from "./SheetBar.vue";
 
 const props = withDefaults(
   defineProps<{
-    data?: LuckySheetRaw[] | SheetSnapshot[];
+    data?: LuckyGridRaw[] | SheetSnapshot[];
     lang?: string;
     /** Optional external engine (compat layer). Caller owns lifecycle. */
     engine?: WorkbookEngine;

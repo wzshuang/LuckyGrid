@@ -5,7 +5,7 @@ export type {
   Command,
   CellData,
   SheetSnapshot,
-  LuckySheetRaw,
+  LuckyGridRaw,
 } from "./engine.js";
 export { Workbook } from "./model/workbook.js";
 export { Sheet } from "./model/sheet.js";

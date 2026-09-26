@@ -10,3 +10,6 @@ coverage
 
 .worktrees/
 .superpowers/
+
+.cursor/
+docs/

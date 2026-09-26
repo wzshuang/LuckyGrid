@@ -4,7 +4,7 @@ import type { SheetSnapshot } from "./model/sheet.js";
 import type { CellData } from "./model/cell.js";
 import { CommandBus } from "./command/bus.js";
 import type { Command } from "./command/types.js";
-import { fromLuckyFile, toLuckyFile, type LuckySheetRaw } from "./io/lucky-json.js";
+import { fromLuckyFile, toLuckyFile, type LuckyGridRaw } from "./io/lucky-json.js";
 import { CanvasRenderer, type HeaderResizeGuide } from "./render/canvas-renderer.js";
 import {
   COL_HEADER_HEIGHT,
@@ -75,7 +75,7 @@ export class WorkbookEngine {
   private raf = 0;
   private copyAnimRaf = 0;
 
-  constructor(data?: LuckySheetRaw[] | SheetSnapshot[]) {
+  constructor(data?: LuckyGridRaw[] | SheetSnapshot[]) {
     this.workbook = new Workbook();
     this.commands = new CommandBus(this.workbook);
     this.commands.measureText = this.measureTextFn;
@@ -87,14 +87,14 @@ export class WorkbookEngine {
     this.commands.measureText = fn;
   }
 
-  load(data: LuckySheetRaw[] | SheetSnapshot[]): void {
+  load(data: LuckyGridRaw[] | SheetSnapshot[]): void {
     const snapshots = isSheetSnapshots(data) ? data : fromLuckyFile(data);
     this.workbook.load(snapshots);
     this.commands.formula.recalculateAll();
     this.requestPaint();
   }
 
-  toLuckyFile(): LuckySheetRaw[] {
+  toLuckyFile(): LuckyGridRaw[] {
     return toLuckyFile(this.workbook.toSnapshots());
   }
 
@@ -982,12 +982,12 @@ export class WorkbookEngine {
 }
 
 function isSheetSnapshots(
-  data: LuckySheetRaw[] | SheetSnapshot[],
+  data: LuckyGridRaw[] | SheetSnapshot[],
 ): data is SheetSnapshot[] {
   if (!data.length) return true;
-  const first = data[0] as SheetSnapshot & LuckySheetRaw;
+  const first = data[0] as SheetSnapshot & LuckyGridRaw;
   return Array.isArray(first.celldata) && !("data" in first && first.data && !first.celldata);
 }
 
-export type { LuckyOp, SelectionRange, PaintMode, Command, CellData, SheetSnapshot, LuckySheetRaw };
+export type { LuckyOp, SelectionRange, PaintMode, Command, CellData, SheetSnapshot, LuckyGridRaw };
 export type { ClipboardPayload };

@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
-import type { SelectionRange, WorkbookEngine } from "@luckysheet3/core";
+import type { SelectionRange, WorkbookEngine } from "@luckygrid/core";
 import {
   buildColOffsets,
   buildRowOffsets,
   COL_HEADER_HEIGHT,
   ROW_HEADER_WIDTH,
-} from "@luckysheet3/core";
+} from "@luckygrid/core";
 
 const props = defineProps<{
   engine: WorkbookEngine;

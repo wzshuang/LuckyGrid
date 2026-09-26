@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
-import { normalizeHt, normalizeVt, type WorkbookEngine } from "@luckysheet3/core";
+import { normalizeHt, normalizeVt, type WorkbookEngine } from "@luckygrid/core";
 import ToolbarMenuCheck from "./ToolbarMenuCheck.vue";
 
 type Axis = "horizontal" | "vertical";
