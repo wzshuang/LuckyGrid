@@ -299,7 +299,15 @@ export function contentSize(
   };
 }
 
-/** Fill-handle rect (bottom-right of selection), or null */
+/**
+ * `.luckysheet-cs-fillhandle`: 6px blue content plus a 1px white border
+ * (content-box), so the outer box is 8px. `right/bottom: -5px` places that
+ * box 4px past the cell corner.
+ */
+export const FILL_HANDLE_SIZE = 8;
+export const FILL_HANDLE_OUTSET = 4;
+
+/** Fill-handle rect (bottom-right of selection), in grid coordinates. */
 export function getFillHandleRect(
   sheet: Sheet,
   selection: { row: [number, number]; column: [number, number] },
@@ -319,10 +327,9 @@ export function getFillHandleRect(
     scrollLeft,
     scrollTop,
   );
-  const size = 6;
   return {
-    x: rect.x + rect.width - size / 2,
-    y: rect.y + rect.height - size / 2,
-    size,
+    x: rect.x + rect.width - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET),
+    y: rect.y + rect.height - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET),
+    size: FILL_HANDLE_SIZE,
   };
 }

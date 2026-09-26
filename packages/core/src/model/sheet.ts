@@ -73,6 +73,14 @@ export class Sheet {
     this.rowCount = init?.row ?? DEFAULT_ROWS;
     this.colCount = init?.column ?? DEFAULT_COLS;
     this.extras = { ...(init?.extras ?? {}) };
+    // Lucky config.rowhidden: { "30": 0, "31": 0 } — keys are hidden row indexes
+    const rowhidden = this.config.rowhidden;
+    if (rowhidden && typeof rowhidden === "object") {
+      for (const key of Object.keys(rowhidden as Record<string, unknown>)) {
+        const n = Number(key);
+        if (Number.isFinite(n)) this.hiddenRows.add(Math.trunc(n));
+      }
+    }
     if (init?.celldata) {
       for (const item of init.celldata) {
         if (item?.v != null) {

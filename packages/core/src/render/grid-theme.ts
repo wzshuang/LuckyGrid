@@ -5,10 +5,12 @@ export const GRID_THEME = {
   headerCellBg: "#ffffff",
   headerBorder: "#dfdfdf",
   headerBorderBottom: "#bbbbbb",
-  headerText: "#5e5e5e",
+  headerText: "#000000",
   headerSelectFill: "rgba(76, 76, 76, 0.1)",
   headerSelectAccent: "#0188fb",
   selectionBorder: "#0188fb",
+  /** `#luckysheet-cell-selected-focus`: under the selection fill, focus cell only */
+  selectionFocusFill: "rgba(0, 80, 208, 0.15)",
   selectionFillActive: "rgba(1, 136, 251, 0.15)",
   selectionFillInactive: "rgba(1, 136, 251, 0.08)",
   selectionBorderInactive: "rgba(1, 136, 251, 0.45)",

@@ -22,6 +22,8 @@ export {
   colLeft,
   ROW_HEADER_WIDTH,
   COL_HEADER_HEIGHT,
+  FILL_HANDLE_OUTSET,
+  FILL_HANDLE_SIZE,
   getFillHandleRect,
   hitRowResize,
   hitColResize,
@@ -95,6 +97,8 @@ export type {
 export {
   normalizeTb,
   normalizeTr,
+  normalizeHt,
+  normalizeVt,
   tbFromMenu,
   trFromMenu,
   rotationAngleDeg,
@@ -107,6 +111,7 @@ export type {
   TextGlyph,
   CellTextLayout,
 } from "./text/types.js";
+export { cellCanvasFont, luckyFontFamilyStack, LUCKY_FONT_FAMILIES } from "./text/font.js";
 export { layoutCellText } from "./text/text-layout.js";
 export type { LayoutCellTextInput } from "./text/text-layout.js";
 export { scanOverflowSpan } from "./text/overflow.js";

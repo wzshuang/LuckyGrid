@@ -3,6 +3,9 @@ import { Sheet } from "../src/model/sheet.js";
 import {
   buildColOffsets,
   buildRowOffsets,
+  FILL_HANDLE_OUTSET,
+  FILL_HANDLE_SIZE,
+  getFillHandleRect,
   hitTest,
   hitCorner,
   rowTop,
@@ -48,6 +51,27 @@ describe("location / hit-test", () => {
       colOffsets,
     );
     expect(hit).toEqual({ row: 0, col: 0 });
+  });
+
+  it("places an 8px fill handle 4px past the cell corner", () => {
+    const sheet = new Sheet({ name: "S", index: 0, row: 3, column: 3 });
+    const rowOffsets = buildRowOffsets(sheet, 3);
+    const colOffsets = buildColOffsets(sheet, 3);
+    const handle = getFillHandleRect(
+      sheet,
+      { row: [0, 0], column: [0, 0] },
+      rowOffsets,
+      colOffsets,
+      0,
+      0,
+    );
+    expect(handle.size).toBe(FILL_HANDLE_SIZE);
+    expect(handle.size).toBe(8);
+    expect(FILL_HANDLE_OUTSET).toBe(4);
+    const cellRight = ROW_HEADER_WIDTH + colOffsets[0]!;
+    const cellBottom = COL_HEADER_HEIGHT + rowOffsets[0]!;
+    expect(handle.x).toBe(cellRight - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET));
+    expect(handle.y).toBe(cellBottom - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET));
   });
 
   it("hitCorner detects top-left header intersection", () => {

@@ -165,6 +165,11 @@ export type Command =
       sheetIndex?: string | number;
     }
   | {
+      type: "clearContents";
+      ranges: SelectionRange[];
+      sheetIndex?: string | number;
+    }
+  | {
       type: "addSheet";
       name?: string;
     }

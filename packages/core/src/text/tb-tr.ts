@@ -18,6 +18,20 @@ export function normalizeTr(v: unknown): TextRotateMode {
   return 0;
 }
 
+/** horizontal align: 0 center, 1 left, 2 right — Lucky JSON often stores strings */
+export function normalizeHt(v: unknown, fallback: 0 | 1 | 2 = 1): 0 | 1 | 2 {
+  const n = parseNumeric(v);
+  if (n === 0 || n === 1 || n === 2) return n;
+  return fallback;
+}
+
+/** vertical align: 0 middle, 1 top, 2 bottom */
+export function normalizeVt(v: unknown, fallback: 0 | 1 | 2 = 0): 0 | 1 | 2 {
+  const n = parseNumeric(v);
+  if (n === 0 || n === 1 || n === 2) return n;
+  return fallback;
+}
+
 export function tbFromMenu(id: "overflow" | "wrap" | "clip"): TextWrapMode {
   switch (id) {
     case "clip":

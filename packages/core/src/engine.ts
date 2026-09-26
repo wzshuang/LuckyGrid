@@ -5,11 +5,16 @@ import type { CellData } from "./model/cell.js";
 import { CommandBus } from "./command/bus.js";
 import type { Command } from "./command/types.js";
 import { fromLuckyFile, toLuckyFile, type LuckySheetRaw } from "./io/lucky-json.js";
-import { CanvasRenderer } from "./render/canvas-renderer.js";
+import { CanvasRenderer, type HeaderResizeGuide } from "./render/canvas-renderer.js";
 import {
+  COL_HEADER_HEIGHT,
+  ROW_HEADER_WIDTH,
   buildColOffsets,
   buildRowOffsets,
+  colLeft,
+  freezeBandSize,
   getCellRect,
+  rowTop,
   getFillHandleRect,
   hitColHeader,
   hitColResize,
@@ -35,6 +40,7 @@ import {
   normalizeRange,
   rangesOverlap,
 } from "./selection/range.js";
+import { scrollToRevealCell } from "./layout/scroll-into-view.js";
 import type { MeasureTextFn } from "./text/types.js";
 
 function createDefaultMeasureText(): MeasureTextFn {
@@ -65,6 +71,7 @@ export class WorkbookEngine {
   private measureTextFn: MeasureTextFn = createDefaultMeasureText();
   private renderer: CanvasRenderer | null = null;
   private viewport = { width: 800, height: 600 };
+  private headerResizeGuide: HeaderResizeGuide | null = null;
   private raf = 0;
   private copyAnimRaf = 0;
 
@@ -126,6 +133,13 @@ export class WorkbookEngine {
     return cell.v ?? null;
   }
 
+  /** Delete / Backspace: clear values and formulas in every selected range. */
+  clearSelectionContent(): void {
+    const ranges = this.workbook.selection;
+    if (!ranges.length) return;
+    this.execute({ type: "clearContents", ranges });
+  }
+
   setCellValue(row: number, col: number, value: string | number | boolean | null): void {
     const str = value == null ? null : String(value);
     if (str != null && str.startsWith("=")) {
@@ -137,6 +151,14 @@ export class WorkbookEngine {
 
   attachCanvas(canvas: HTMLCanvasElement): void {
     this.renderer = new CanvasRenderer(this.workbook, canvas);
+    this.renderer.setHeaderResizeGuide(this.headerResizeGuide);
+    this.requestPaint();
+  }
+
+  /** Draw a 1px resize guide, or clear it when `guide` is null. */
+  setHeaderResizeGuide(guide: HeaderResizeGuide | null): void {
+    this.headerResizeGuide = guide;
+    this.renderer?.setHeaderResizeGuide(guide);
     this.requestPaint();
   }
 
@@ -307,6 +329,73 @@ export class WorkbookEngine {
     }
 
     this.execute({ type: "setSelection", selection: [next] });
+  }
+
+  /**
+   * Arrow keys and Tab. Moves from the focus cell, then scrolls it into view
+   * the way Luckysheet `luckysheetMoveHighlightCell` does.
+   */
+  moveFocus(dRow: number, dCol: number, opts?: { shift?: boolean }): void {
+    const focus = this.getFocusCell();
+    if (!focus) return;
+    const sheet = this.workbook.getActiveSheet();
+    let row = focus.row;
+    let col = focus.col;
+    const fromMerge = !opts?.shift ? sheet.getMergeAt(row, col) : null;
+    if (fromMerge) {
+      if (dRow > 0) row = fromMerge.r + fromMerge.rs - 1;
+      else if (dRow < 0) row = fromMerge.r;
+      if (dCol > 0) col = fromMerge.c + fromMerge.cs - 1;
+      else if (dCol < 0) col = fromMerge.c;
+    }
+    row = Math.max(0, Math.min(sheet.rowCount - 1, row + dRow));
+    col = Math.max(0, Math.min(sheet.colCount - 1, col + dCol));
+    const destMerge = !opts?.shift ? sheet.getMergeAt(row, col) : null;
+    if (destMerge) {
+      row = destMerge.r;
+      col = destMerge.c;
+    }
+    this.selectAt(row, col, { shift: opts?.shift });
+    this.revealCell(row, col);
+  }
+
+  /** Scroll so `row`/`col` (including its merge) stays inside the cell viewport. */
+  revealCell(row: number, col: number): void {
+    const sheet = this.workbook.getActiveSheet();
+    if (sheet.rowCount <= 0 || sheet.colCount <= 0) return;
+    row = Math.max(0, Math.min(sheet.rowCount - 1, row));
+    col = Math.max(0, Math.min(sheet.colCount - 1, col));
+    const rowOffsets = buildRowOffsets(sheet);
+    const colOffsets = buildColOffsets(sheet);
+    const merge = sheet.getMergeAt(row, col);
+    const r0 = merge?.r ?? row;
+    const c0 = merge?.c ?? col;
+    const r1 = r0 + (merge?.rs ?? 1) - 1;
+    const c1 = c0 + (merge?.cs ?? 1) - 1;
+    const band = freezeBandSize(sheet, rowOffsets, colOffsets);
+    const next = scrollToRevealCell({
+      scrollLeft: this.workbook.scrollLeft,
+      scrollTop: this.workbook.scrollTop,
+      viewWidth: Math.max(0, this.viewport.width - ROW_HEADER_WIDTH),
+      viewHeight: Math.max(0, this.viewport.height - COL_HEADER_HEIGHT),
+      cellLeft: colLeft(colOffsets, c0),
+      cellRight: colOffsets[c1] ?? colLeft(colOffsets, c0),
+      cellTop: rowTop(rowOffsets, r0),
+      cellBottom: rowOffsets[r1] ?? rowTop(rowOffsets, r0),
+      freezeWidth: band.width,
+      freezeHeight: band.height,
+    });
+    if (
+      next.scrollLeft === this.workbook.scrollLeft &&
+      next.scrollTop === this.workbook.scrollTop
+    ) {
+      return;
+    }
+    this.execute({
+      type: "setScroll",
+      scrollLeft: next.scrollLeft,
+      scrollTop: next.scrollTop,
+    });
   }
 
   selectRow(

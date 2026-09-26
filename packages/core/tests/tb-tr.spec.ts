@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   normalizeTb,
   normalizeTr,
+  normalizeHt,
+  normalizeVt,
   tbFromMenu,
   trFromMenu,
   rotationAngleDeg,
@@ -26,6 +28,17 @@ describe("tb/tr mapping", () => {
     expect(normalizeTb(9)).toBe(0);
     expect(normalizeTr("4")).toBe(4);
     expect(normalizeTr(99)).toBe(0);
+  });
+
+  it("normalizes Lucky string ht/vt (sheet-cell Alignment row)", () => {
+    expect(normalizeHt("0")).toBe(0);
+    expect(normalizeHt("1")).toBe(1);
+    expect(normalizeHt("2")).toBe(2);
+    expect(normalizeHt("x", 1)).toBe(1);
+    expect(normalizeVt("0")).toBe(0);
+    expect(normalizeVt("1")).toBe(1);
+    expect(normalizeVt("2")).toBe(2);
+    expect(normalizeVt(undefined, 0)).toBe(0);
   });
 
   it("maps rotation angles", () => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import type { WorkbookEngine } from "@luckysheet3/core";
-import { COL_HEADER_HEIGHT, ROW_HEADER_WIDTH } from "@luckysheet3/core";
+import { COL_HEADER_HEIGHT, ROW_HEADER_WIDTH, cellCanvasFont } from "@luckysheet3/core";
 
 const props = defineProps<{
   engine: WorkbookEngine;
@@ -24,12 +24,17 @@ function syncRect() {
     visible.value = false;
     return;
   }
-  const rect = props.engine.getCellRect(props.engine.workbook.editRow, props.engine.workbook.editCol);
+  const row = props.engine.workbook.editRow;
+  const col = props.engine.workbook.editCol;
+  const rect = props.engine.getCellRect(row, col);
+  const cell = props.engine.workbook.getActiveSheet().getCell(row, col);
+  const font = cellCanvasFont(cell);
   style.value = {
     left: `${Math.max(ROW_HEADER_WIDTH, rect.x)}px`,
     top: `${Math.max(COL_HEADER_HEIGHT, rect.y)}px`,
     width: `${Math.max(40, rect.width)}px`,
     height: `${Math.max(18, rect.height)}px`,
+    font,
   };
   visible.value = true;
 }
@@ -83,13 +88,36 @@ function commit() {
   props.engine.commitEdit(text.value);
 }
 
+function focusGrid() {
+  const grid = inputRef.value?.closest(".ls3-grid");
+  if (grid instanceof HTMLElement) grid.focus();
+}
+
+function commitAndMove(dRow: number, dCol: number) {
+  commit();
+  props.engine.moveFocus(dRow, dCol);
+  focusGrid();
+}
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Enter") {
     e.preventDefault();
-    commit();
-  } else if (e.key === "Escape") {
+    e.stopPropagation();
+    commitAndMove(1, 0);
+    return;
+  }
+  if (e.key === "Tab") {
     e.preventDefault();
+    e.stopPropagation();
+    commitAndMove(0, e.shiftKey ? -1 : 1);
+    return;
+  }
+  if (e.key === "Escape") {
+    e.preventDefault();
+    e.stopPropagation();
     props.engine.cancelEdit();
+    focusGrid();
+    return;
   }
   e.stopPropagation();
 }
@@ -114,7 +142,8 @@ function onKeydown(e: KeyboardEvent) {
   border: 2px solid #0188fb;
   padding: 0 4px;
   margin: 0;
-  font: 10pt sans-serif;
+  font: 10pt "Times New Roman", "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB",
+    "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
   outline: none;
   box-sizing: border-box;
   background: #fff;

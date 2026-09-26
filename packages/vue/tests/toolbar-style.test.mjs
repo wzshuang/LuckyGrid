@@ -78,7 +78,11 @@ describe("toolbar.css tokens", () => {
     assert.match(css, /rgba\(0,\s*0,\s*0,\s*\.12\)/);
     assert.match(css, /\.ls3-toolbar__menu/);
     assert.match(css, /min-width:\s*120px/);
+    assert.match(css, /max-width:\s*280px/);
+    assert.match(css, /width:\s*max-content/);
+    assert.doesNotMatch(css, /\.ls3-toolbar__menu--border\s*\{[^}]*min-width:\s*172px/s);
     assert.match(css, /#efefef/);
+    assert.match(css, /\.ls3-toolbar__menu-icon\s*\{[^}]*margin-left:\s*auto/s);
     assert.doesNotMatch(css, /#e6f4ff/);
   });
 });

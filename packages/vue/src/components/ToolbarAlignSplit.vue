@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
-import type { WorkbookEngine } from "@luckysheet3/core";
+import { normalizeHt, normalizeVt, type WorkbookEngine } from "@luckysheet3/core";
 import ToolbarMenuCheck from "./ToolbarMenuCheck.vue";
 
 type Axis = "horizontal" | "vertical";
@@ -46,11 +46,9 @@ const currentValue = computed(() => {
   void props.chrome.styleRev.value;
   const cell = props.engine.getActiveCellStyle();
   if (props.axis === "horizontal") {
-    const ht = cell?.ht;
-    return ht === 0 || ht === 1 || ht === 2 ? ht : DEFAULT_HT;
+    return normalizeHt(cell?.ht, DEFAULT_HT);
   }
-  const vt = cell?.vt;
-  return vt === 0 || vt === 1 || vt === 2 ? vt : DEFAULT_VT;
+  return normalizeVt(cell?.vt, DEFAULT_VT);
 });
 
 const currentItem = computed(() => {

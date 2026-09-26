@@ -2,8 +2,12 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import type { ChromeState } from "../composables/useChromeState";
 import type { SelectionRange, WorkbookEngine } from "@luckysheet3/core";
-import { COL_HEADER_HEIGHT, ROW_HEADER_WIDTH } from "@luckysheet3/core";
-import GridHeaders from "./GridHeaders.vue";
+import {
+  buildColOffsets,
+  buildRowOffsets,
+  COL_HEADER_HEIGHT,
+  ROW_HEADER_WIDTH,
+} from "@luckysheet3/core";
 
 const props = defineProps<{
   engine: WorkbookEngine;
@@ -12,7 +16,6 @@ const props = defineProps<{
 
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const wrapRef = ref<HTMLDivElement | null>(null);
-const cellSurfaceRef = ref<HTMLDivElement | null>(null);
 const pendingChar = ref<string | null>(null);
 
 let selecting = false;
@@ -20,10 +23,17 @@ let filling = false;
 let fillFrom: SelectionRange | null = null;
 let anchor = { row: 0, col: 0 };
 let mods = { shift: false, ctrl: false };
+let headerDrag: { kind: "row" | "col"; start: number } | null = null;
+let resizing: {
+  axis: "row" | "col";
+  index: number;
+  start: number;
+  size: number;
+} | null = null;
 let resizeObs: ResizeObserver | null = null;
 
 function measure() {
-  const el = cellSurfaceRef.value;
+  const el = wrapRef.value;
   if (!el || !canvasRef.value) return;
   const rect = el.getBoundingClientRect();
   props.engine.setViewport(Math.max(100, rect.width), Math.max(100, rect.height));
@@ -35,7 +45,7 @@ onMounted(() => {
     measure();
   }
   resizeObs = new ResizeObserver(() => measure());
-  if (cellSurfaceRef.value) resizeObs.observe(cellSurfaceRef.value);
+  if (wrapRef.value) resizeObs.observe(wrapRef.value);
   window.addEventListener("keydown", onKeyDown);
 });
 
@@ -54,19 +64,96 @@ watch(
   },
 );
 
-function gridPosFromSurface(e: PointerEvent) {
-  const el = cellSurfaceRef.value!;
+function gridPos(e: { clientX: number; clientY: number }) {
+  const el = canvasRef.value ?? wrapRef.value!;
   const rect = el.getBoundingClientRect();
   return {
-    x: e.clientX - rect.left + ROW_HEADER_WIDTH,
-    y: e.clientY - rect.top + COL_HEADER_HEIGHT,
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top,
   };
+}
+
+function rowGuideY(index: number): number {
+  const offsets = buildRowOffsets(props.engine.workbook.getActiveSheet());
+  return COL_HEADER_HEIGHT + (offsets[index] ?? 0) - props.engine.workbook.scrollTop;
+}
+
+function colGuideX(index: number): number {
+  const offsets = buildColOffsets(props.engine.workbook.getActiveSheet());
+  return ROW_HEADER_WIDTH + (offsets[index] ?? 0) - props.engine.workbook.scrollLeft;
+}
+
+function updateCursor(x: number, y: number) {
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+  if (props.chrome.paintFormatActive.value) {
+    canvas.style.cursor = "";
+    return;
+  }
+  if (resizing) {
+    canvas.style.cursor = resizing.axis === "row" ? "ns-resize" : "ew-resize";
+    return;
+  }
+  if (props.engine.hitRowResize(x, y) != null) canvas.style.cursor = "ns-resize";
+  else if (props.engine.hitColResize(x, y) != null) canvas.style.cursor = "ew-resize";
+  else canvas.style.cursor = "";
 }
 
 function onPointerDown(e: PointerEvent) {
   (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  const { x, y } = gridPosFromSurface(e);
+  const { x, y } = gridPos(e);
   mods = { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey };
+
+  if (props.engine.hitCorner(x, y)) {
+    if (props.engine.editing) props.engine.commitEdit();
+    props.engine.selectAll();
+    wrapRef.value?.focus();
+    return;
+  }
+
+  const resizeRow = props.engine.hitRowResize(x, y);
+  if (resizeRow != null) {
+    resizing = {
+      axis: "row",
+      index: resizeRow,
+      start: e.clientY,
+      size: props.engine.workbook.getActiveSheet().getRowHeight(resizeRow),
+    };
+    props.engine.setHeaderResizeGuide({ axis: "row", position: rowGuideY(resizeRow) });
+    updateCursor(x, y);
+    e.preventDefault();
+    return;
+  }
+  const resizeCol = props.engine.hitColResize(x, y);
+  if (resizeCol != null) {
+    resizing = {
+      axis: "col",
+      index: resizeCol,
+      start: e.clientX,
+      size: props.engine.workbook.getActiveSheet().getColWidth(resizeCol),
+    };
+    props.engine.setHeaderResizeGuide({ axis: "col", position: colGuideX(resizeCol) });
+    updateCursor(x, y);
+    e.preventDefault();
+    return;
+  }
+
+  const headerRow = props.engine.hitRowHeader(x, y);
+  if (headerRow != null) {
+    if (props.engine.editing) props.engine.commitEdit();
+    headerDrag = { kind: "row", start: headerRow };
+    props.engine.selectRow(headerRow, { shift: e.shiftKey });
+    wrapRef.value?.focus();
+    return;
+  }
+  const headerCol = props.engine.hitColHeader(x, y);
+  if (headerCol != null) {
+    if (props.engine.editing) props.engine.commitEdit();
+    headerDrag = { kind: "col", start: headerCol };
+    props.engine.selectColumn(headerCol, { shift: e.shiftKey });
+    wrapRef.value?.focus();
+    return;
+  }
 
   if (props.engine.editing) {
     const hit = props.engine.hitTest(x, y);
@@ -105,7 +192,30 @@ function onPointerDown(e: PointerEvent) {
 }
 
 function onPointerMove(e: PointerEvent) {
-  const { x, y } = gridPosFromSurface(e);
+  const { x, y } = gridPos(e);
+  if (resizing) {
+    if (resizing.axis === "row") {
+      const height = Math.max(4, resizing.size + (e.clientY - resizing.start));
+      props.engine.execute({ type: "setRowHeight", row: resizing.index, height });
+      props.engine.setHeaderResizeGuide({ axis: "row", position: rowGuideY(resizing.index) });
+    } else {
+      const width = Math.max(4, resizing.size + (e.clientX - resizing.start));
+      props.engine.execute({ type: "setColWidth", col: resizing.index, width });
+      props.engine.setHeaderResizeGuide({ axis: "col", position: colGuideX(resizing.index) });
+    }
+    return;
+  }
+  if (headerDrag) {
+    if (headerDrag.kind === "row") {
+      const row = props.engine.hitRowHeader(x, y) ?? props.engine.hitTest(ROW_HEADER_WIDTH + 1, y)?.row;
+      if (row != null) props.engine.selectRow(headerDrag.start, { endRow: row });
+    } else {
+      const col = props.engine.hitColHeader(x, y) ?? props.engine.hitTest(x, COL_HEADER_HEIGHT + 1)?.col;
+      if (col != null) props.engine.selectColumn(headerDrag.start, { endCol: col });
+    }
+    return;
+  }
+  if (!selecting && !filling) updateCursor(x, y);
   if (filling && fillFrom) {
     const hit = props.engine.hitTest(x, y);
     if (!hit) return;
@@ -141,6 +251,14 @@ function onPointerMove(e: PointerEvent) {
 }
 
 function onPointerUp() {
+  if (resizing || headerDrag) {
+    props.engine.setHeaderResizeGuide(null);
+  }
+  resizing = null;
+  headerDrag = null;
+  if (canvasRef.value && !props.chrome.paintFormatActive.value) {
+    canvasRef.value.style.cursor = "";
+  }
   if (filling && fillFrom) {
     const sel = props.engine.getActiveRange();
     if (sel) {
@@ -156,7 +274,15 @@ function onPointerUp() {
   mods = { shift: false, ctrl: false };
 }
 
-function onDblClick() {
+function onDblClick(e: MouseEvent) {
+  const { x, y } = gridPos(e);
+  if (
+    props.engine.hitCorner(x, y) ||
+    props.engine.hitRowHeader(x, y) != null ||
+    props.engine.hitColHeader(x, y) != null
+  ) {
+    return;
+  }
   props.engine.startEdit();
 }
 
@@ -268,23 +394,31 @@ function onKeyDown(e: KeyboardEvent) {
 
   if (e.key === "ArrowUp") {
     e.preventDefault();
-    r = Math.max(0, r - 1);
+    props.engine.moveFocus(-1, 0, { shift: e.shiftKey });
+    return;
   } else if (e.key === "ArrowDown") {
     e.preventDefault();
-    r += 1;
+    props.engine.moveFocus(1, 0, { shift: e.shiftKey });
+    return;
   } else if (e.key === "ArrowLeft") {
     e.preventDefault();
-    c = Math.max(0, c - 1);
+    props.engine.moveFocus(0, -1, { shift: e.shiftKey });
+    return;
   } else if (e.key === "ArrowRight") {
     e.preventDefault();
-    c += 1;
+    props.engine.moveFocus(0, 1, { shift: e.shiftKey });
+    return;
+  } else if (e.key === "Tab") {
+    e.preventDefault();
+    props.engine.moveFocus(0, e.shiftKey ? -1 : 1);
+    return;
   } else if (e.key === "Enter" || e.key === "F2") {
     e.preventDefault();
     props.engine.startEdit(r, c);
     return;
   } else if (e.key === "Delete" || e.key === "Backspace") {
     e.preventDefault();
-    props.engine.execute({ type: "setCellValue", row: r, col: c, value: null });
+    props.engine.clearSelectionContent();
     return;
   } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
     e.preventDefault();
@@ -299,15 +433,6 @@ function onKeyDown(e: KeyboardEvent) {
     props.engine.startEdit(r, c);
     props.engine.workbook.emit({ type: "edit", editing: true, row: r, col: c });
     pendingChar.value = e.key;
-    return;
-  } else {
-    return;
-  }
-
-  if (e.shiftKey) {
-    props.engine.selectAt(r, c, { shift: true });
-  } else {
-    props.engine.selectAt(r, c);
   }
 }
 
@@ -322,26 +447,21 @@ defineExpose({ pendingChar });
     tabindex="0"
     @wheel="onWheel"
   >
-    <GridHeaders :engine="props.engine" :grid-root="wrapRef" />
-    <div ref="cellSurfaceRef" class="ls3-grid__surface">
-      <canvas
-        ref="canvasRef"
-        class="ls3-grid__canvas"
-        @pointerdown="onPointerDown"
-        @pointermove="onPointerMove"
-        @pointerup="onPointerUp"
-        @dblclick="onDblClick"
-      />
-      <slot :pending-char="pendingChar" :clear-pending="() => (pendingChar = null)" />
-    </div>
+    <canvas
+      ref="canvasRef"
+      class="ls3-grid__canvas"
+      @pointerdown="onPointerDown"
+      @pointermove="onPointerMove"
+      @pointerup="onPointerUp"
+      @pointercancel="onPointerUp"
+      @dblclick="onDblClick"
+    />
+    <slot :pending-char="pendingChar" :clear-pending="() => (pendingChar = null)" />
   </div>
 </template>
 
 <style scoped>
 .ls3-grid {
-  display: grid;
-  grid-template-columns: var(--ls3-row-header-width, 46px) 1fr;
-  grid-template-rows: var(--ls3-col-header-height, 20px) 1fr;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -351,15 +471,6 @@ defineExpose({ pendingChar });
 }
 .ls3-grid--paint {
   cursor: cell;
-}
-.ls3-grid__surface {
-  grid-column: 2;
-  grid-row: 2;
-  position: relative;
-  min-width: 0;
-  min-height: 0;
-  overflow: hidden;
-  z-index: 0;
 }
 .ls3-grid__canvas {
   display: block;

@@ -1,15 +1,9 @@
-import { displayValue, type CellData } from "../model/cell.js";
+import { displayValue } from "../model/cell.js";
 import { DEFAULT_ROW_LEN, type Sheet } from "../model/sheet.js";
+import { cellCanvasFont } from "./font.js";
 import { layoutCellText } from "./text-layout.js";
 import { normalizeTb } from "./tb-tr.js";
 import type { MeasureTextFn } from "./types.js";
-
-function cellFont(cell: CellData | null): string {
-  const fs = cell?.fs ?? 10;
-  const bold = cell?.bl ? "bold " : "";
-  const italic = cell?.it ? "italic " : "";
-  return `${italic}${bold}${fs}pt sans-serif`;
-}
 
 function mergeCellWidth(sheet: Sheet, row: number, col: number): number {
   const merge = sheet.getMergeAt(row, col);
@@ -58,7 +52,7 @@ export function measureRowHeight(
       tr: cell?.tr,
       ht: cell?.ht,
       vt: cell?.vt,
-      font: cellFont(cell),
+      font: cellCanvasFont(cell),
       measureText,
     });
     maxContent = Math.max(maxContent, layout.contentHeight);

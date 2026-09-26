@@ -194,7 +194,9 @@
   left: 0;
   z-index: 1004;
   box-sizing: border-box;
+  width: max-content;
   min-width: 120px;
+  max-width: 280px;
   margin: 0;
   padding: 6px 0;
   list-style: none;
@@ -203,11 +205,7 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* 水平/垂直对齐下拉（原版 #luckysheet-icon-align-menu-menuButton ≈122px） */
-.ls3-toolbar__split--align:not(.ls3-toolbar__split--border) .ls3-toolbar__menu {
-  width: 122px;
-  min-width: 122px;
-}
+/* 对齐 / 换行 / 旋转：继承通用菜单宽高约束，不再单独定宽 */
 
 .ls3-toolbar__menu-item {
   display: flex;
@@ -230,7 +228,7 @@
   background: #efefef;
 }
 
-.ls3-toolbar__menu-item .iconfont-luckysheet:not(.ls3-toolbar__menu-submenu-arrow) {
+.ls3-toolbar__menu-item .iconfont-luckysheet:not(.ls3-toolbar__menu-submenu-arrow):not(.ls3-toolbar__menu-icon) {
   width: 26px;
   margin-right: 4px;
   font-size: 24px;
@@ -238,6 +236,9 @@
 }
 
 .ls3-toolbar__menu-label {
+  flex: 1 1 auto;
+  min-width: max-content;
+  margin-right: 12px;
   font-size: 13px;
 }
 
@@ -271,9 +272,12 @@
   margin-left: 0.27em;
 }
 
+/* 菜单行右侧示例图标：统一靠右，避免文案长短不一导致图标列错位 */
 .ls3-toolbar__menu-icon {
   flex-shrink: 0;
   width: 26px;
+  margin-left: auto;
+  margin-right: 0;
   font-size: 24px;
   line-height: 26px;
   text-align: center;
@@ -351,17 +355,12 @@
   list-style: none;
 }
 
-.ls3-toolbar__menu--border {
-  width: 172px;
-  min-width: 172px;
-}
-
 /* cols-menuitem 1px+content 3px 垂直；item 左右 8px/24px + content 左 1px */
 .ls3-toolbar__split--align .ls3-toolbar__menu .ls3-toolbar__menu-item,
 .ls3-toolbar__menu-item--border-row {
   height: auto;
   min-height: 28px;
-  padding: 4px 24px 4px 9px;
+  padding: 4px 10px;
 }
 
 .ls3-toolbar__menu-item--border-row {
@@ -371,16 +370,7 @@
 
 .ls3-toolbar__menu--border .ls3-toolbar__menu-item--border-row .ls3-toolbar__menu-label:not(.ls3-toolbar__menu-label--color):not(.ls3-toolbar__menu-label--border-size) {
   flex: 1;
-  min-width: 0;
-}
-
-.ls3-toolbar__menu--border .ls3-toolbar__menu-icon--border {
-  margin-left: auto;
-  margin-right: 0;
-}
-
-.ls3-toolbar__menu--border .ls3-toolbar__menu-icon--border.iconfont-luckysheet {
-  margin-right: 0;
+  min-width: max-content;
 }
 
 .ls3-toolbar__menu-item--color .ls3-toolbar__menu-label--color {
@@ -461,13 +451,11 @@
   left: 100%;
   top: 0;
   z-index: 1;
-  min-width: 148px;
   margin-left: -2px;
   padding-left: 4px;
 }
 
 .ls3-toolbar__menu--sub-color {
-  min-width: 172px;
   padding: 6px 0;
 }
 

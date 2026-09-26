@@ -45,11 +45,19 @@ export interface CellStyle {
   bd?: CellBorder | null;
 }
 
+/** Lucky inlineStr run (`ct.t === "inlineStr"` → `ct.s`) */
+export type InlineStrRun = {
+  v?: string | null;
+  [key: string]: unknown;
+};
+
 export interface CellType {
   /** format string e.g. General */
   fa?: string;
-  /** type: n number, s string, d date, b bool, etc. */
+  /** type: n number, s string, d date, b bool, inlineStr, etc. */
   t?: string;
+  /** rich-text runs when t is inlineStr */
+  s?: InlineStrRun[];
 }
 
 export interface CellData extends CellStyle {
@@ -71,7 +79,12 @@ export function cloneCell(cell: Cell): CellData | null {
   if (cell == null) return null;
   return {
     ...cell,
-    ct: cell.ct ? { ...cell.ct } : cell.ct,
+    ct: cell.ct
+      ? {
+          ...cell.ct,
+          s: cell.ct.s ? cell.ct.s.map((run) => ({ ...run })) : cell.ct.s,
+        }
+      : cell.ct,
     bd: cell.bd
       ? {
           t: cell.bd.t ? { ...cell.bd.t } : undefined,
@@ -84,9 +97,41 @@ export function cloneCell(cell: Cell): CellData | null {
   };
 }
 
+function inlineStrText(cell: CellData): string {
+  const runs = cell.ct?.s;
+  if (!Array.isArray(runs) || runs.length === 0) return "";
+  return runs.map((run) => (run?.v != null ? String(run.v) : "")).join("");
+}
+
+/** Drop value, display text, formula, and inline rich text. Keep style and number format. */
+export function clearCellContent(cell: Cell): CellData | null {
+  if (cell == null) return null;
+  const next = cloneCell(cell)!;
+  delete next.v;
+  delete next.m;
+  delete next.f;
+  if (next.ct?.t === "inlineStr") delete next.ct;
+  if (!hasRemainingCellData(next)) return null;
+  return next;
+}
+
+function hasRemainingCellData(cell: CellData): boolean {
+  for (const [key, value] of Object.entries(cell)) {
+    if (value == null) continue;
+    if (key === "extras" && typeof value === "object" && Object.keys(value).length === 0) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 export function displayValue(cell: Cell): string {
   if (cell == null) return "";
   if (cell.m != null && cell.m !== "") return String(cell.m);
-  if (cell.v == null) return "";
-  return String(cell.v);
+  if (cell.v != null && cell.v !== "") return String(cell.v);
+  const inline = inlineStrText(cell);
+  if (inline !== "") return inline;
+  if (cell.v != null) return String(cell.v);
+  return "";
 }

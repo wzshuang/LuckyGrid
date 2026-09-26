@@ -5,25 +5,42 @@ import {
   buildColOffsets,
   buildRowOffsets,
   COL_HEADER_HEIGHT,
+  colLeft,
   contentSize,
   freezeBandSize,
+  FILL_HANDLE_OUTSET,
+  FILL_HANDLE_SIZE,
   getCellRect,
   ROW_HEADER_WIDTH,
+  rowTop,
   searchOffset,
-  type CellRect,
 } from "../hit/location.js";
+import { buildHeaderLayout } from "../layout/header-layout.js";
 import { visibleCellRange } from "../layout/visible-range.js";
 import { GRID_THEME } from "./grid-theme.js";
+import { luckyFontFamilyStack } from "../text/font.js";
 import { borderLineStroke } from "../border/border-line-stroke.js";
 import {
   borderKey,
   computeBorderInfoMap,
 } from "../border/materialize-border-info.js";
-import { layoutCellText } from "../text/text-layout.js";
+import { cellCanvasFont } from "../text/font.js";
+import { layoutCellText, layoutInlineRuns } from "../text/text-layout.js";
 import { scanOverflowSpan } from "../text/overflow.js";
 import { normalizeTb, normalizeTr } from "../text/tb-tr.js";
 import type { CellTextLayout, MeasureTextFn } from "../text/types.js";
 import type { Sheet } from "../model/sheet.js";
+
+/** Temporary row/column resize indicator, in canvas pixels. */
+export type HeaderResizeGuide = {
+  axis: "row" | "col";
+  position: number;
+};
+
+/** Luckysheet `drawLineInfo`: strike at `baseline - ascent/2 + 1`. */
+export function strikeLineY(baselineY: number, ascent: number): number {
+  return baselineY - ascent / 2 + 1;
+}
 
 function textDecorationLineYs(
   ty: number,
@@ -43,9 +60,10 @@ function createCanvasMeasureText(ctx: CanvasRenderingContext2D): MeasureTextFn {
   return (text: string, font: string) => {
     ctx.font = font;
     const m = ctx.measureText(text);
-    const height =
-      (m.actualBoundingBoxAscent ?? 0) + (m.actualBoundingBoxDescent ?? 0) || 12;
-    return { width: m.width, height };
+    const ascent = m.actualBoundingBoxAscent || 0;
+    const descent = m.actualBoundingBoxDescent || 0;
+    const height = ascent + descent || 12;
+    return { width: m.width, height, ascent: ascent || height, descent };
   };
 }
 
@@ -59,13 +77,24 @@ function overflowSpanSurfaceRect(
   colOffsets: number[],
   scrollLeft: number,
   scrollTop: number,
-  toSurface: (rect: CellRect) => CellRect,
 ): { x: number; y: number; width: number; height: number } {
-  const start = toSurface(
-    getCellRect(sheet, row, startCol, rowOffsets, colOffsets, scrollLeft, scrollTop),
+  const start = getCellRect(
+    sheet,
+    row,
+    startCol,
+    rowOffsets,
+    colOffsets,
+    scrollLeft,
+    scrollTop,
   );
-  const end = toSurface(
-    getCellRect(sheet, row, endCol, rowOffsets, colOffsets, scrollLeft, scrollTop),
+  const end = getCellRect(
+    sheet,
+    row,
+    endCol,
+    rowOffsets,
+    colOffsets,
+    scrollLeft,
+    scrollTop,
   );
   return {
     x: start.x,
@@ -100,25 +129,37 @@ function paintLayoutGlyphs(
   fs: number,
   cell: { fc?: string | null; un?: number; cl?: number } | null | undefined,
 ): void {
-  const angleRad = (layout.angleDeg * Math.PI) / 180;
-  for (const glyph of layout.glyphs) {
-    const gx = originX + glyph.x;
-    const gy = originY + glyph.y;
-    if (layout.angleDeg !== 0) {
-      ctx.save();
-      ctx.translate(gx, gy);
-      ctx.rotate(angleRad);
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      ctx.fillText(glyph.text, 0, 0);
-      paintTextDecorations(ctx, glyph.text, 0, 0, fs, cell);
-      ctx.restore();
-    } else {
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      ctx.fillText(glyph.text, gx, gy);
-      paintTextDecorations(ctx, glyph.text, gx, gy, fs, cell);
+  const drawAt = (gx: number, gy: number, glyph: CellTextLayout["glyphs"][number]): void => {
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.textBaseline = glyph.textBaseline ?? "top";
+    if (glyph.font) ctx.font = glyph.font;
+    if (glyph.color) ctx.fillStyle = glyph.color;
+    ctx.fillText(glyph.text, gx, gy);
+    const deco =
+      glyph.font != null
+        ? { fc: glyph.color ?? cell?.fc, un: glyph.un ?? 0, cl: glyph.cl ?? 0 }
+        : cell;
+    paintTextDecorations(ctx, glyph.text, gx, gy, glyph.fs ?? fs, deco);
+    ctx.restore();
+  };
+
+  // Lucky cellTextRender: translate(pivot) → rotate(-rt) → draw words in pre-rotate frame
+  if (layout.glyphSpace === "pivot" && layout.angleDeg !== 0) {
+    const px = originX + layout.pivotX;
+    const py = originY + layout.pivotY;
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate((-layout.angleDeg * Math.PI) / 180);
+    for (const glyph of layout.glyphs) {
+      drawAt(glyph.x, glyph.y, glyph);
     }
+    ctx.restore();
+    return;
+  }
+
+  for (const glyph of layout.glyphs) {
+    drawAt(originX + glyph.x, originY + glyph.y, glyph);
   }
 }
 
@@ -132,15 +173,22 @@ function paintTextDecorations(
 ): void {
   if (!cell?.un && !cell?.cl) return;
   const fsPx = fs * (96 / 72);
-  const width = ctx.measureText(text).width;
+  const metrics = ctx.measureText(text);
+  const width = metrics.width;
   let x0 = tx;
   if (ctx.textAlign === "center") x0 = tx - width / 2;
   else if (ctx.textAlign === "right") x0 = tx - width;
 
-  const { underline, strike } = textDecorationLineYs(ty, ctx.textBaseline, fsPx);
+  const lines = textDecorationLineYs(ty, ctx.textBaseline, fsPx);
+  let { underline, strike } = lines;
+  if (ctx.textBaseline === "alphabetic") {
+    const ascent =
+      metrics.actualBoundingBoxAscent > 0 ? metrics.actualBoundingBoxAscent : fsPx * 0.8;
+    strike = strikeLineY(ty, ascent);
+  }
   ctx.save();
   ctx.strokeStyle = cell.fc ?? "#000000";
-  ctx.lineWidth = Math.max(1, fsPx / 12);
+  ctx.lineWidth = Math.max(1, Math.floor(fs / 9));
   ctx.beginPath();
   if (cell.un) {
     ctx.moveTo(x0, underline);
@@ -163,6 +211,11 @@ export class CanvasRenderer {
   private dpr = 1;
   private rowOffsets: number[] = [];
   private colOffsets: number[] = [];
+  private headerResizeGuide: HeaderResizeGuide | null = null;
+
+  setHeaderResizeGuide(guide: HeaderResizeGuide | null): void {
+    this.headerResizeGuide = guide;
+  }
 
   constructor(
     private workbook: Workbook,
@@ -204,12 +257,11 @@ export class CanvasRenderer {
 
     const gx = ROW_HEADER_WIDTH;
     const gy = COL_HEADER_HEIGHT;
+    const cellW = Math.max(0, w - gx);
+    const cellH = Math.max(0, h - gy);
+    const cellViewport = { width: cellW, height: cellH };
 
-    const toSurface = (rect: CellRect): CellRect => ({
-      ...rect,
-      x: rect.x - gx,
-      y: rect.y - gy,
-    });
+    this.paintHeaders(ctx, cellViewport, gx, gy);
 
     let scrollStartCol: number;
     let endCol: number;
@@ -218,7 +270,7 @@ export class CanvasRenderer {
     if (freeze.row === 0 && freeze.col === 0) {
       const range = visibleCellRange(
         sheet,
-        viewport,
+        cellViewport,
         scrollLeft,
         scrollTop,
         this.rowOffsets,
@@ -235,7 +287,7 @@ export class CanvasRenderer {
       );
       endCol = Math.min(
         sheet.colCount - 1,
-        searchOffset(this.colOffsets, scrollLeft + w) + 1,
+        searchOffset(this.colOffsets, scrollLeft + cellW) + 1,
       );
       scrollStartRow = Math.max(
         freeze.row,
@@ -243,7 +295,7 @@ export class CanvasRenderer {
       );
       endRow = Math.min(
         sheet.rowCount - 1,
-        searchOffset(this.rowOffsets, scrollTop + h) + 1,
+        searchOffset(this.rowOffsets, scrollTop + cellH) + 1,
       );
     }
 
@@ -266,7 +318,7 @@ export class CanvasRenderer {
         scrollLeft,
         scrollTop,
       );
-      const rect = toSurface(gridRect);
+      const rect = gridRect;
       const cell = sheet.getCell(gridRect.row, gridRect.col);
       const bd = bdAt(gridRect.row, gridRect.col);
 
@@ -279,11 +331,13 @@ export class CanvasRenderer {
       paintCellBorders(ctx, rect, bd, bdAt, gridRect.row, gridRect.col);
 
       const text = displayValue(cell);
-      if (text) {
+      const inlineRuns =
+        cell?.ct?.t === "inlineStr" && cell.ct.s?.length && normalizeTr(cell.tr) === 0
+          ? cell.ct.s
+          : null;
+      if (inlineRuns || text) {
         const fs = cell?.fs ?? 10;
-        const bold = cell?.bl ? "bold " : "";
-        const italic = cell?.it ? "italic " : "";
-        const font = `${italic}${bold}${fs}pt sans-serif`;
+        const font = cellCanvasFont(cell);
         ctx.font = font;
         ctx.fillStyle = cell?.fc ?? "#000000";
         const ht = cell?.ht ?? 1;
@@ -313,7 +367,6 @@ export class CanvasRenderer {
               this.colOffsets,
               scrollLeft,
               scrollTop,
-              toSurface,
             );
             layoutWidth = clipRect.width;
             layoutHeight = clipRect.height;
@@ -325,17 +378,27 @@ export class CanvasRenderer {
         }
 
         if (!skipBody) {
-          const layout = layoutCellText({
-            text,
-            cellWidth: layoutWidth,
-            cellHeight: layoutHeight,
-            tb,
-            tr,
-            ht,
-            vt,
-            font,
-            measureText,
-          });
+          const layout = inlineRuns
+            ? layoutInlineRuns({
+                runs: inlineRuns,
+                cellWidth: layoutWidth,
+                cellHeight: layoutHeight,
+                tb,
+                ht,
+                vt,
+                measureText,
+              })
+            : layoutCellText({
+                text,
+                cellWidth: layoutWidth,
+                cellHeight: layoutHeight,
+                tb,
+                tr,
+                ht,
+                vt,
+                font,
+                measureText,
+              });
 
           ctx.save();
           ctx.beginPath();
@@ -350,10 +413,10 @@ export class CanvasRenderer {
     ctx.save();
     ctx.beginPath();
     ctx.rect(
-      band.width,
-      band.height,
-      Math.max(0, w - band.width),
-      Math.max(0, h - band.height),
+      gx + band.width,
+      gy + band.height,
+      Math.max(0, cellW - band.width),
+      Math.max(0, cellH - band.height),
     );
     ctx.clip();
     for (let r = scrollStartRow; r <= endRow; r++) {
@@ -364,7 +427,7 @@ export class CanvasRenderer {
     if (freeze.row > 0) {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, 0, w, band.height);
+      ctx.rect(gx, gy, cellW, band.height);
       ctx.clip();
       for (let r = 0; r < freeze.row; r++) {
         for (let c = scrollStartCol; c <= endCol; c++) paintCell(r, c);
@@ -376,7 +439,7 @@ export class CanvasRenderer {
     if (freeze.col > 0) {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(0, band.height, band.width, Math.max(0, h - band.height));
+      ctx.rect(gx, gy + band.height, band.width, Math.max(0, cellH - band.height));
       ctx.clip();
       for (let r = scrollStartRow; r <= endRow; r++) {
         for (let c = 0; c < freeze.col; c++) paintCell(r, c);
@@ -386,38 +449,50 @@ export class CanvasRenderer {
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, 0, w, h);
+    ctx.rect(gx, gy, cellW, cellH);
     ctx.clip();
 
     const selections = this.workbook.selection;
     const lastIdx = selections.length - 1;
+    const focusSel = selections[lastIdx];
+    if (focusSel) {
+      const focusRow = focusSel.row_focus ?? focusSel.row[0];
+      const focusCol = focusSel.column_focus ?? focusSel.column[0];
+      const focus = getCellRect(
+        sheet,
+        focusRow,
+        focusCol,
+        this.rowOffsets,
+        this.colOffsets,
+        scrollLeft,
+        scrollTop,
+      );
+      ctx.fillStyle = GRID_THEME.selectionFocusFill;
+      ctx.fillRect(focus.x, focus.y, focus.width, focus.height);
+    }
     for (let i = 0; i < selections.length; i++) {
       const sel = selections[i];
       const r0 = Math.min(sel.row[0], sel.row[1]);
       const r1 = Math.max(sel.row[0], sel.row[1]);
       const c0 = Math.min(sel.column[0], sel.column[1]);
       const c1 = Math.max(sel.column[0], sel.column[1]);
-      const topLeft = toSurface(
-        getCellRect(
-          sheet,
-          r0,
-          c0,
-          this.rowOffsets,
-          this.colOffsets,
-          scrollLeft,
-          scrollTop,
-        ),
+      const topLeft = getCellRect(
+        sheet,
+        r0,
+        c0,
+        this.rowOffsets,
+        this.colOffsets,
+        scrollLeft,
+        scrollTop,
       );
-      const bottomRight = toSurface(
-        getCellRect(
-          sheet,
-          r1,
-          c1,
-          this.rowOffsets,
-          this.colOffsets,
-          scrollLeft,
-          scrollTop,
-        ),
+      const bottomRight = getCellRect(
+        sheet,
+        r1,
+        c1,
+        this.rowOffsets,
+        this.colOffsets,
+        scrollLeft,
+        scrollTop,
       );
       const sx = topLeft.x;
       const sy = topLeft.y;
@@ -433,20 +508,21 @@ export class CanvasRenderer {
         ? GRID_THEME.selectionBorder
         : GRID_THEME.selectionBorderInactive;
       ctx.lineWidth = 1;
-      ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 1, sh - 1);
+      // 对齐原版 .luckysheet-cell-selected { margin: -1px 0 0 -1px }：
+      // 左边、上边外移 1px，与行头右边框、列头下边框重合。单元格区 clip 会裁掉伸进表头的部分。
+      ctx.strokeRect(sx - 0.5, sy - 0.5, sw, sh);
 
       if (isActive) {
         ctx.strokeStyle = GRID_THEME.fillHandleBorder;
         ctx.lineWidth = 1;
-        ctx.strokeRect(sx + 1.5, sy + 1.5, sw - 3, sh - 3);
+        ctx.strokeRect(sx + 0.5, sy + 0.5, sw - 2, sh - 2);
 
-        const handleSize = 6;
-        const hx = sx + sw - handleSize + 2;
-        const hy = sy + sh - handleSize + 2;
+        const hx = sx + sw - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET);
+        const hy = sy + sh - (FILL_HANDLE_SIZE - FILL_HANDLE_OUTSET);
+        ctx.fillStyle = GRID_THEME.fillHandleBorder;
+        ctx.fillRect(hx, hy, FILL_HANDLE_SIZE, FILL_HANDLE_SIZE);
         ctx.fillStyle = GRID_THEME.fillHandleFill;
-        ctx.fillRect(hx, hy, handleSize, handleSize);
-        ctx.strokeStyle = GRID_THEME.fillHandleBorder;
-        ctx.strokeRect(hx + 0.5, hy + 0.5, handleSize - 1, handleSize - 1);
+        ctx.fillRect(hx + 1, hy + 1, FILL_HANDLE_SIZE - 2, FILL_HANDLE_SIZE - 2);
       }
     }
 
@@ -456,27 +532,23 @@ export class CanvasRenderer {
       const r1 = Math.max(copy.row[0], copy.row[1]);
       const c0 = Math.min(copy.column[0], copy.column[1]);
       const c1 = Math.max(copy.column[0], copy.column[1]);
-      const topLeft = toSurface(
-        getCellRect(
-          sheet,
-          r0,
-          c0,
-          this.rowOffsets,
-          this.colOffsets,
-          scrollLeft,
-          scrollTop,
-        ),
+      const topLeft = getCellRect(
+        sheet,
+        r0,
+        c0,
+        this.rowOffsets,
+        this.colOffsets,
+        scrollLeft,
+        scrollTop,
       );
-      const bottomRight = toSurface(
-        getCellRect(
-          sheet,
-          r1,
-          c1,
-          this.rowOffsets,
-          this.colOffsets,
-          scrollLeft,
-          scrollTop,
-        ),
+      const bottomRight = getCellRect(
+        sheet,
+        r1,
+        c1,
+        this.rowOffsets,
+        this.colOffsets,
+        scrollLeft,
+        scrollTop,
       );
       const sx = topLeft.x;
       const sy = topLeft.y;
@@ -492,22 +564,147 @@ export class CanvasRenderer {
     }
 
     if (freeze.row > 0) {
-      const y = band.height;
+      const y = gy + band.height;
       ctx.strokeStyle = GRID_THEME.selectionBorder;
       ctx.beginPath();
-      ctx.moveTo(0, y + 0.5);
-      ctx.lineTo(w, y + 0.5);
+      ctx.moveTo(gx, y + 0.5);
+      ctx.lineTo(gx + cellW, y + 0.5);
       ctx.stroke();
     }
     if (freeze.col > 0) {
-      const x = band.width;
+      const x = gx + band.width;
       ctx.strokeStyle = GRID_THEME.selectionBorder;
       ctx.beginPath();
-      ctx.moveTo(x + 0.5, 0);
-      ctx.lineTo(x + 0.5, h);
+      ctx.moveTo(x + 0.5, gy);
+      ctx.lineTo(x + 0.5, gy + cellH);
       ctx.stroke();
     }
 
+    ctx.restore();
+    this.paintResizeGuide(ctx, w, h);
+  }
+
+  private paintHeaders(
+    ctx: CanvasRenderingContext2D,
+    cellViewport: { width: number; height: number },
+    gx: number,
+    gy: number,
+  ): void {
+    const layout = buildHeaderLayout(this.workbook, cellViewport);
+    const cellW = cellViewport.width;
+    const cellH = cellViewport.height;
+
+    ctx.fillStyle = GRID_THEME.headerCellBg;
+    ctx.fillRect(0, 0, gx, gy);
+    ctx.strokeStyle = GRID_THEME.headerBorder;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gx - 0.5, 0);
+    ctx.lineTo(gx - 0.5, gy);
+    ctx.moveTo(0, gy - 0.5);
+    ctx.lineTo(gx, gy - 0.5);
+    ctx.stroke();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(gx, 0, cellW, gy);
+    ctx.clip();
+    ctx.fillStyle = GRID_THEME.headerCellBg;
+    ctx.fillRect(gx, 0, cellW, gy);
+    ctx.font = `10pt ${luckyFontFamilyStack()}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const item of layout.colItems) {
+      const x = gx + item.offset - layout.scrollLeft;
+      ctx.fillStyle = GRID_THEME.headerText;
+      ctx.fillText(item.label, x + item.size / 2, gy / 2);
+      ctx.strokeStyle = GRID_THEME.headerBorder;
+      ctx.beginPath();
+      ctx.moveTo(x + item.size - 0.5, 0);
+      ctx.lineTo(x + item.size - 0.5, gy);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = GRID_THEME.headerBorder;
+    ctx.beginPath();
+    ctx.moveTo(gx, gy - 0.5);
+    ctx.lineTo(gx + cellW, gy - 0.5);
+    ctx.stroke();
+    for (const band of layout.colSelection) {
+      const x0 = gx + colLeft(this.colOffsets, band.startIndex) - layout.scrollLeft;
+      const x1 =
+        gx +
+        (this.colOffsets[band.endIndex] ?? colLeft(this.colOffsets, band.endIndex)) -
+        layout.scrollLeft;
+      ctx.fillStyle = GRID_THEME.headerSelectFill;
+      ctx.fillRect(x0, 0, Math.max(0, x1 - x0), gy);
+      ctx.strokeStyle = GRID_THEME.headerSelectAccent;
+      ctx.beginPath();
+      ctx.moveTo(x0, gy - 0.5);
+      ctx.lineTo(x1, gy - 0.5);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, gy, gx, cellH);
+    ctx.clip();
+    ctx.fillStyle = GRID_THEME.headerCellBg;
+    ctx.fillRect(0, gy, gx, cellH);
+    ctx.font = `10pt ${luckyFontFamilyStack()}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    for (const item of layout.rowItems) {
+      const y = gy + item.offset - layout.scrollTop;
+      ctx.fillStyle = GRID_THEME.headerText;
+      ctx.fillText(item.label, gx / 2, y + item.size / 2);
+      ctx.strokeStyle = GRID_THEME.headerBorder;
+      ctx.beginPath();
+      ctx.moveTo(0, y + item.size - 0.5);
+      ctx.lineTo(gx, y + item.size - 0.5);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = GRID_THEME.headerBorder;
+    ctx.beginPath();
+    ctx.moveTo(gx - 0.5, gy);
+    ctx.lineTo(gx - 0.5, gy + cellH);
+    ctx.stroke();
+    for (const band of layout.rowSelection) {
+      const y0 = gy + rowTop(this.rowOffsets, band.startIndex) - layout.scrollTop;
+      const y1 =
+        gy +
+        (this.rowOffsets[band.endIndex] ?? rowTop(this.rowOffsets, band.endIndex)) -
+        layout.scrollTop;
+      ctx.fillStyle = GRID_THEME.headerSelectFill;
+      ctx.fillRect(0, y0, gx, Math.max(0, y1 - y0));
+      ctx.strokeStyle = GRID_THEME.headerSelectAccent;
+      ctx.beginPath();
+      ctx.moveTo(gx - 0.5, y0);
+      ctx.lineTo(gx - 0.5, y1);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  private paintResizeGuide(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+  ): void {
+    const guide = this.headerResizeGuide;
+    if (!guide) return;
+    ctx.save();
+    ctx.strokeStyle = GRID_THEME.headerSelectAccent;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    if (guide.axis === "col") {
+      ctx.moveTo(guide.position + 0.5, 0);
+      ctx.lineTo(guide.position + 0.5, height);
+    } else {
+      ctx.moveTo(0, guide.position + 0.5);
+      ctx.lineTo(width, guide.position + 0.5);
+    }
+    ctx.stroke();
     ctx.restore();
   }
 

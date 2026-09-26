@@ -1,6 +1,6 @@
 import type { Workbook } from "../model/workbook.js";
 import type { CellData } from "../model/cell.js";
-import { cloneCell } from "../model/cell.js";
+import { clearCellContent, cloneCell } from "../model/cell.js";
 import type { Command, ExecuteResult, InverseEntry } from "./types.js";
 import { FormulaEngine } from "../formula/evaluator.js";
 import { displayValue } from "../model/cell.js";
@@ -12,6 +12,7 @@ import {
   clearCellFormat,
   presetById,
 } from "../format/number-format.js";
+import { normalizeRange } from "../selection/range.js";
 import { recalcRowHeights } from "../text/row-height.js";
 import type { MeasureTextFn } from "../text/types.js";
 
@@ -31,6 +32,7 @@ const STRUCTURAL = new Set([
   "setFilter",
   "setBorders",
   "setStyleRange",
+  "clearContents",
 ]);
 
 const SHEET_MGMT = new Set(["addSheet", "deleteSheet", "renameSheet"]);
@@ -214,6 +216,8 @@ export class CommandBus {
         return this.applySetFormat(command);
       case "clearFormat":
         return this.applyClearFormat(command);
+      case "clearContents":
+        return this.applyClearContents(command);
       case "setSelection": {
         const prevSelection = this.workbook.selection;
         this.workbook.setSelection(command.selection);
@@ -530,6 +534,38 @@ export class CommandBus {
     };
   }
 
+  private applyClearContents(
+    command: Extract<Command, { type: "clearContents" }>,
+  ): ExecuteResult {
+    const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+    const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
+    const prevState = sheet.captureState();
+    const touched: Array<{ r: number; c: number }> = [];
+
+    for (const range of command.ranges) {
+      const n = normalizeRange(range, sheet);
+      for (let r = n.row[0]; r <= n.row[1]; r++) {
+        for (let c = n.column[0]; c <= n.column[1]; c++) {
+          const prev = sheet.getCell(r, c);
+          if (!prev) continue;
+          const next = clearCellContent(prev);
+          if (cellContentSame(prev, next)) continue;
+          sheet.setCell(r, c, next);
+          touched.push({ r, c });
+        }
+      }
+    }
+
+    for (const { r, c } of touched) {
+      this.formula.recalculate(r, c, sheetIndex);
+    }
+    for (const { r, c } of touched) {
+      this.formula.recalculateDependents(r, c, sheetIndex);
+    }
+    this.workbook.emit({ type: "change", sheetIndex });
+    return { inverse: { command, prevState } };
+  }
+
   private applyClearFormat(
     command: Extract<Command, { type: "clearFormat" }>,
   ): ExecuteResult {
@@ -550,6 +586,11 @@ export class CommandBus {
       },
     };
   }
+}
+
+function cellContentSame(a: CellData, b: CellData | null): boolean {
+  if (b == null) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 function escapeRegExp(s: string): string {
