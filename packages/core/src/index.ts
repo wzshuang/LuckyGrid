@@ -9,7 +9,8 @@ export type {
 } from "./engine.js";
 export { Workbook } from "./model/workbook.js";
 export { Sheet } from "./model/sheet.js";
-export { fromLuckyFile, toLuckyFile } from "./io/lucky-json.js";
+export { fromLuckyFile, toLuckyFile, frozenToFreeze } from "./io/lucky-json.js";
+export type { LuckyFrozen } from "./io/lucky-json.js";
 export { Parser, tokenize, collectRefs } from "./formula/parser.js";
 export { FormulaEngine } from "./formula/evaluator.js";
 export {
@@ -46,8 +47,23 @@ export {
   selectTitlesRange,
   expandRangeForMerges,
 } from "./selection/range.js";
-export { displayValue, cloneCell } from "./model/cell.js";
-export type { CellBorder, BorderSide } from "./model/cell.js";
+export {
+  displayValue,
+  cloneCell,
+  defaultPostil,
+  DEFAULT_POSTIL_WIDTH,
+  DEFAULT_POSTIL_HEIGHT,
+  DEFAULT_POSTIL_OFFSET,
+} from "./model/cell.js";
+export type { CellBorder, BorderSide, CellPostil } from "./model/cell.js";
+export {
+  getPostilLayout,
+  cellContentAnchor,
+  resolvePostilBox,
+  getArrowCanvasSize,
+  drawPostilArrow,
+} from "./comment/postil-layout.js";
+export type { PostilLayout } from "./comment/postil-layout.js";
 export { findNext, collectColumnValues } from "./find/find-replace.js";
 export type { Command as EngineCommand } from "./command/types.js";
 export { applyBorders, applyBorderType } from "./border/borders.js";

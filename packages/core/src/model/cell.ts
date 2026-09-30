@@ -60,6 +60,17 @@ export interface CellType {
   s?: InlineStrRun[];
 }
 
+/** Luckysheet cell comment / postil (`ps`) */
+export interface CellPostil {
+  left?: number | null;
+  top?: number | null;
+  width?: number | null;
+  height?: number | null;
+  value?: string | null;
+  /** true = always show bubble; false = hover only */
+  isshow?: boolean;
+}
+
 export interface CellData extends CellStyle {
   /** raw value */
   v?: string | number | boolean | null;
@@ -69,6 +80,8 @@ export interface CellData extends CellStyle {
   f?: string | null;
   /** cell type / format */
   ct?: CellType | null;
+  /** comment / postil */
+  ps?: CellPostil | null;
   /** passthrough unknown fields from Lucky JSON */
   extras?: Record<string, unknown>;
 }
@@ -93,7 +106,23 @@ export function cloneCell(cell: Cell): CellData | null {
           r: cell.bd.r ? { ...cell.bd.r } : undefined,
         }
       : cell.bd,
+    ps: cell.ps ? { ...cell.ps } : cell.ps,
     extras: cell.extras ? { ...cell.extras } : cell.extras,
+  };
+}
+
+export const DEFAULT_POSTIL_WIDTH = 144;
+export const DEFAULT_POSTIL_HEIGHT = 84;
+export const DEFAULT_POSTIL_OFFSET = 18;
+
+export function defaultPostil(value = ""): CellPostil {
+  return {
+    left: null,
+    top: null,
+    width: null,
+    height: null,
+    value,
+    isshow: false,
   };
 }
 
@@ -124,6 +153,11 @@ function hasRemainingCellData(cell: CellData): boolean {
     return true;
   }
   return false;
+}
+
+export function isCellEmpty(cell: CellData | null | undefined): boolean {
+  if (cell == null) return true;
+  return !hasRemainingCellData(cell);
 }
 
 export function displayValue(cell: Cell): string {

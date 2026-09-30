@@ -30,6 +30,7 @@ export type WorkbookEvent =
   | { type: "history"; undoDepth: number; redoDepth: number }
   | { type: "op"; op: LuckyOp }
   | { type: "edit"; editing: boolean; row?: number; col?: number }
+  | { type: "comment"; active: { row: number; col: number } | null }
   | { type: "paintFormat"; active: boolean };
 
 /** Luckysheet collaborative opcode (MVP: v | rv only) */
@@ -42,8 +43,6 @@ export type LuckyOp = {
   range?: { row: [number, number]; column: [number, number] };
 };
 
-import type { ClipboardPayload } from "../clipboard/clipboard.js";
-
 export class Workbook {
   sheets: Sheet[] = [];
   activeIndex: string | number = 0;
@@ -55,6 +54,8 @@ export class Workbook {
   editCol = 0;
   /** Live draft while cell editor is open */
   editDraft = "";
+  /** Active comment bubble being edited (row/col) */
+  activeComment: { row: number; col: number } | null = null;
   clipboard: ClipboardPayload | null = null;
   /** Marching-ants range after copy/cut; cleared on Esc / cut-paste / new copy. */
   copyHighlight: SelectionRange | null = null;
@@ -223,6 +224,11 @@ export class Workbook {
     if (col != null) this.editCol = col;
     if (!editing) this.editDraft = "";
     this.emit({ type: "edit", editing, row: this.editRow, col: this.editCol });
+  }
+
+  setActiveComment(active: { row: number; col: number } | null): void {
+    this.activeComment = active;
+    this.emit({ type: "comment", active });
   }
 
   toSnapshots(): SheetSnapshot[] {

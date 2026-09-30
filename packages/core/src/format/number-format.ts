@@ -131,6 +131,7 @@ export function clearCellFormat(cell: CellData | null): CellData | null {
     f: cell.f,
     ct: { fa: "General", t: typeof cell.v === "number" ? "n" : "g" },
   };
+  if (cell.ps) next.ps = { ...cell.ps };
   if (cell.extras) next.extras = cell.extras;
   return next;
 }

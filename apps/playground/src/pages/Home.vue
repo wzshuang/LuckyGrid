@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { LuckyGrid } from "@luckygrid/vue";
-import { cellSheetForCompare, CELL_SHEET_KNOWN_GAPS } from "../data/cell-sheet";
+import { demoSheetsForCompare, DEMO_SHEET_KNOWN_GAPS } from "../data/demo-sheets";
 
-const cellSheets = cellSheetForCompare();
+const demoSheets = demoSheetsForCompare();
 
 /** Override with full URL if原版 runs on another host */
 const originalDemoUrl = computed(
@@ -16,19 +16,20 @@ const originalDemoUrl = computed(
 <template>
   <div class="compare">
     <p class="compare__hint">
-      左：原版 Demo（请切换到第一个 Sheet「Cell」）；右：LuckyGrid 直接加载同一份
-      <code>sheetCell</code> JSON（<code>fixtures/lucky/sheet-cell.json</code>）。未实现的能力保留在数据里但不强行模拟，方便对照差距。
+      左：原版 Demo；右：LuckyGrid 加载同一套 Demo sheet（
+      <code>fixtures/lucky/sheet-*.json</code>，顺序与 LuckysheetDemo
+      <code>create().data</code> 一致）。未实现的能力保留在数据里但不强行模拟，方便对照差距。
     </p>
     <details class="compare__gaps">
       <summary>右侧预期与原版不一致项（已知缺口）</summary>
       <ul>
-        <li v-for="(g, i) in CELL_SHEET_KNOWN_GAPS" :key="i">{{ g }}</li>
+        <li v-for="(g, i) in DEMO_SHEET_KNOWN_GAPS" :key="i">{{ g }}</li>
       </ul>
     </details>
     <div class="compare__columns">
       <section class="compare__pane">
         <header class="compare__head">
-          <h2>原版 Luckysheet · Cell</h2>
+          <h2>原版 Luckysheet · Demo</h2>
         </header>
         <iframe
           class="compare__frame"
@@ -39,10 +40,10 @@ const originalDemoUrl = computed(
       </section>
       <section class="compare__pane">
         <header class="compare__head">
-          <h2>LuckyGrid · Cell（同源数据）</h2>
+          <h2>LuckyGrid · Demo（同源多 Sheet）</h2>
         </header>
         <div class="compare__sheet">
-          <LuckyGrid :data="cellSheets" />
+          <LuckyGrid :data="demoSheets" />
         </div>
       </section>
     </div>

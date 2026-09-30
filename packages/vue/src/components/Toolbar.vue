@@ -12,6 +12,7 @@ import ToolbarAlignSplit from "./ToolbarAlignSplit.vue";
 import ToolbarBorderSplit from "./ToolbarBorderSplit.vue";
 import ToolbarTextWrapSplit from "./ToolbarTextWrapSplit.vue";
 import ToolbarTextRotateSplit from "./ToolbarTextRotateSplit.vue";
+import ToolbarCommentSplit from "./ToolbarCommentSplit.vue";
 import ToolbarButton from "./ToolbarButton.vue";
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const showFind = ref(false);
 const openAlignMenu = ref<null | "horizontal" | "vertical">(null);
 const openBorderMenu = ref(false);
 const openTextMenu = ref<null | "wrap" | "rotate">(null);
+const openCommentMenu = ref(false);
 const fontColorInput = ref<HTMLInputElement | null>(null);
 const fillColorInput = ref<HTMLInputElement | null>(null);
 const fontSize = ref(10);
@@ -231,6 +233,7 @@ function onPaintClick() {
           if (v) {
             openAlignMenu = null;
             openTextMenu = null;
+            openCommentMenu = false;
           }
         }
       "
@@ -249,6 +252,7 @@ function onPaintClick() {
           if (v) {
             openBorderMenu = false;
             openTextMenu = null;
+            openCommentMenu = false;
           }
         }
       "
@@ -264,6 +268,7 @@ function onPaintClick() {
           if (v) {
             openBorderMenu = false;
             openTextMenu = null;
+            openCommentMenu = false;
           }
         }
       "
@@ -278,6 +283,7 @@ function onPaintClick() {
           if (v) {
             openAlignMenu = null;
             openBorderMenu = false;
+            openCommentMenu = false;
           }
         }
       "
@@ -292,6 +298,7 @@ function onPaintClick() {
           if (v) {
             openAlignMenu = null;
             openBorderMenu = false;
+            openCommentMenu = false;
           }
         }
       "
@@ -306,6 +313,22 @@ function onPaintClick() {
     <ToolbarButton icon="dongjie" title="冻结首列" @click="freezeCol" />
     <ToolbarButton icon="dongjie1" title="冻结至此" @click="engine.freezeSelection()" />
     <ToolbarButton icon="qingchu" title="取消冻结" @click="clearFreeze" />
+    <span class="ls3-toolbar__sep" />
+    <ToolbarCommentSplit
+      :engine="engine"
+      :chrome="chrome"
+      :open="openCommentMenu"
+      @update:open="
+        (v) => {
+          openCommentMenu = v;
+          if (v) {
+            openAlignMenu = null;
+            openBorderMenu = false;
+            openTextMenu = null;
+          }
+        }
+      "
+    />
     <span class="ls3-toolbar__sep" />
     <ToolbarButton icon="sousuo" title="查找替换" @click="showFind = true" />
   </div>

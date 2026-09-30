@@ -17,4 +17,14 @@ export const GRID_THEME = {
   fillHandleFill: "#0188fb",
   fillHandleBorder: "#ffffff",
   canvasBackground: "#ffffff",
+  /**
+   * Freeze divider — Luckysheet `.luckysheet-freezebar-*-drop-bar` / `-drop-title`
+   * (2px; bar over grid, title over header).
+   */
+  freezeBar: "rgba(0, 0, 0, 0.45)",
+  freezeBarTitle: "#bcbdbc",
+  freezeBarSize: 2,
+  /** Comment corner marker — Luckysheet draw.js `#FC6666` / 8px */
+  commentMarker: "#FC6666",
+  commentMarkerSize: 8,
 } as const;

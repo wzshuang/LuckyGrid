@@ -1,5 +1,6 @@
 import type { Workbook } from "../model/workbook.js";
 import { displayValue } from "../model/cell.js";
+import { colToLetter } from "../model/cell-key.js";
 import type { CellBorder } from "../model/cell.js";
 import {
   buildColOffsets,
@@ -350,7 +351,7 @@ export class CanvasRenderer {
         let layoutHeight = rect.height;
         let originX = rect.x;
         let originY = rect.y;
-        let clipRect = rect;
+        let clipRect: { x: number; y: number; width: number; height: number } = rect;
         let skipBody = false;
 
         if (tb === 1 && tr === 0) {
@@ -407,6 +408,19 @@ export class CanvasRenderer {
           paintLayoutGlyphs(ctx, layout, originX, originY, fs, cell);
           ctx.restore();
         }
+      }
+
+      if (cell?.ps != null) {
+        const size = GRID_THEME.commentMarkerSize;
+        const endX = rect.x + rect.width;
+        const startY = rect.y;
+        ctx.beginPath();
+        ctx.moveTo(endX - size, startY);
+        ctx.lineTo(endX, startY);
+        ctx.lineTo(endX, startY + size);
+        ctx.closePath();
+        ctx.fillStyle = GRID_THEME.commentMarker;
+        ctx.fill();
       }
     };
 
@@ -563,25 +577,38 @@ export class CanvasRenderer {
       ctx.restore();
     }
 
+    ctx.restore();
+
+    // Freeze dividers (Luckysheet freezebar: 2px title over header + bar over grid)
+    this.paintFreezeBars(ctx, gx, gy, cellW, cellH, freeze, band);
+
+    this.paintResizeGuide(ctx, w, h);
+  }
+
+  private paintFreezeBars(
+    ctx: CanvasRenderingContext2D,
+    gx: number,
+    gy: number,
+    cellW: number,
+    cellH: number,
+    freeze: { row: number; col: number },
+    band: { width: number; height: number },
+  ): void {
+    const size = GRID_THEME.freezeBarSize;
     if (freeze.row > 0) {
       const y = gy + band.height;
-      ctx.strokeStyle = GRID_THEME.selectionBorder;
-      ctx.beginPath();
-      ctx.moveTo(gx, y + 0.5);
-      ctx.lineTo(gx + cellW, y + 0.5);
-      ctx.stroke();
+      ctx.fillStyle = GRID_THEME.freezeBarTitle;
+      ctx.fillRect(0, y, gx, size);
+      ctx.fillStyle = GRID_THEME.freezeBar;
+      ctx.fillRect(gx, y, cellW, size);
     }
     if (freeze.col > 0) {
       const x = gx + band.width;
-      ctx.strokeStyle = GRID_THEME.selectionBorder;
-      ctx.beginPath();
-      ctx.moveTo(x + 0.5, gy);
-      ctx.lineTo(x + 0.5, gy + cellH);
-      ctx.stroke();
+      ctx.fillStyle = GRID_THEME.freezeBarTitle;
+      ctx.fillRect(x, 0, size, gy);
+      ctx.fillStyle = GRID_THEME.freezeBar;
+      ctx.fillRect(x, gy, size, cellH);
     }
-
-    ctx.restore();
-    this.paintResizeGuide(ctx, w, h);
   }
 
   private paintHeaders(
@@ -590,9 +617,12 @@ export class CanvasRenderer {
     gx: number,
     gy: number,
   ): void {
+    const sheet = this.workbook.getActiveSheet();
     const layout = buildHeaderLayout(this.workbook, cellViewport);
     const cellW = cellViewport.width;
     const cellH = cellViewport.height;
+    const freeze = sheet.config.freeze ?? { row: 0, col: 0 };
+    const band = freezeBandSize(sheet, this.rowOffsets, this.colOffsets);
 
     ctx.fillStyle = GRID_THEME.headerCellBg;
     ctx.fillRect(0, 0, gx, gy);
@@ -605,35 +635,64 @@ export class CanvasRenderer {
     ctx.lineTo(gx, gy - 0.5);
     ctx.stroke();
 
+    const paintColHeaderItem = (
+      offset: number,
+      size: number,
+      label: string,
+      scroll: number,
+    ) => {
+      const x = gx + offset - scroll;
+      ctx.fillStyle = GRID_THEME.headerText;
+      ctx.fillText(label, x + size / 2, gy / 2);
+      ctx.strokeStyle = GRID_THEME.headerBorder;
+      ctx.beginPath();
+      ctx.moveTo(x + size - 0.5, 0);
+      ctx.lineTo(x + size - 0.5, gy);
+      ctx.stroke();
+    };
+
+    const paintRowHeaderItem = (
+      offset: number,
+      size: number,
+      label: string,
+      scroll: number,
+    ) => {
+      const y = gy + offset - scroll;
+      ctx.fillStyle = GRID_THEME.headerText;
+      ctx.fillText(label, gx / 2, y + size / 2);
+      ctx.strokeStyle = GRID_THEME.headerBorder;
+      ctx.beginPath();
+      ctx.moveTo(0, y + size - 0.5);
+      ctx.lineTo(gx, y + size - 0.5);
+      ctx.stroke();
+    };
+
+    // Column headers — scroll region
     ctx.save();
     ctx.beginPath();
-    ctx.rect(gx, 0, cellW, gy);
+    ctx.rect(gx + band.width, 0, Math.max(0, cellW - band.width), gy);
     ctx.clip();
     ctx.fillStyle = GRID_THEME.headerCellBg;
-    ctx.fillRect(gx, 0, cellW, gy);
-    ctx.font = `10pt ${luckyFontFamilyStack()}`;
+    ctx.fillRect(gx + band.width, 0, Math.max(0, cellW - band.width), gy);
+    ctx.font = "10pt " + luckyFontFamilyStack();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     for (const item of layout.colItems) {
-      const x = gx + item.offset - layout.scrollLeft;
-      ctx.fillStyle = GRID_THEME.headerText;
-      ctx.fillText(item.label, x + item.size / 2, gy / 2);
-      ctx.strokeStyle = GRID_THEME.headerBorder;
-      ctx.beginPath();
-      ctx.moveTo(x + item.size - 0.5, 0);
-      ctx.lineTo(x + item.size - 0.5, gy);
-      ctx.stroke();
+      if (item.index < freeze.col) continue;
+      paintColHeaderItem(item.offset, item.size, item.label, layout.scrollLeft);
     }
     ctx.strokeStyle = GRID_THEME.headerBorder;
     ctx.beginPath();
     ctx.moveTo(gx, gy - 0.5);
     ctx.lineTo(gx + cellW, gy - 0.5);
     ctx.stroke();
-    for (const band of layout.colSelection) {
-      const x0 = gx + colLeft(this.colOffsets, band.startIndex) - layout.scrollLeft;
+    for (const sel of layout.colSelection) {
+      if (sel.endIndex < freeze.col) continue;
+      const startIdx = Math.max(sel.startIndex, freeze.col);
+      const x0 = gx + colLeft(this.colOffsets, startIdx) - layout.scrollLeft;
       const x1 =
         gx +
-        (this.colOffsets[band.endIndex] ?? colLeft(this.colOffsets, band.endIndex)) -
+        (this.colOffsets[sel.endIndex] ?? colLeft(this.colOffsets, sel.endIndex)) -
         layout.scrollLeft;
       ctx.fillStyle = GRID_THEME.headerSelectFill;
       ctx.fillRect(x0, 0, Math.max(0, x1 - x0), gy);
@@ -645,35 +704,45 @@ export class CanvasRenderer {
     }
     ctx.restore();
 
+    // Column headers — frozen
+    if (freeze.col > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(gx, 0, band.width, gy);
+      ctx.clip();
+      ctx.fillStyle = GRID_THEME.headerCellBg;
+      ctx.fillRect(gx, 0, band.width, gy);
+      ctx.font = "10pt " + luckyFontFamilyStack();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let c = 0; c < freeze.col; c++) {
+        const size = sheet.getColWidth(c);
+        paintColHeaderItem(colLeft(this.colOffsets, c), size, colToLetter(c), 0);
+      }
+      ctx.restore();
+    }
+
+    // Row headers — scroll region
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, gy, gx, cellH);
+    ctx.rect(0, gy + band.height, gx, Math.max(0, cellH - band.height));
     ctx.clip();
     ctx.fillStyle = GRID_THEME.headerCellBg;
-    ctx.fillRect(0, gy, gx, cellH);
-    ctx.font = `10pt ${luckyFontFamilyStack()}`;
+    ctx.fillRect(0, gy + band.height, gx, Math.max(0, cellH - band.height));
+    ctx.font = "10pt " + luckyFontFamilyStack();
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     for (const item of layout.rowItems) {
-      const y = gy + item.offset - layout.scrollTop;
-      ctx.fillStyle = GRID_THEME.headerText;
-      ctx.fillText(item.label, gx / 2, y + item.size / 2);
-      ctx.strokeStyle = GRID_THEME.headerBorder;
-      ctx.beginPath();
-      ctx.moveTo(0, y + item.size - 0.5);
-      ctx.lineTo(gx, y + item.size - 0.5);
-      ctx.stroke();
+      if (item.index < freeze.row) continue;
+      paintRowHeaderItem(item.offset, item.size, item.label, layout.scrollTop);
     }
-    ctx.strokeStyle = GRID_THEME.headerBorder;
-    ctx.beginPath();
-    ctx.moveTo(gx - 0.5, gy);
-    ctx.lineTo(gx - 0.5, gy + cellH);
-    ctx.stroke();
-    for (const band of layout.rowSelection) {
-      const y0 = gy + rowTop(this.rowOffsets, band.startIndex) - layout.scrollTop;
+    for (const sel of layout.rowSelection) {
+      if (sel.endIndex < freeze.row) continue;
+      const startIdx = Math.max(sel.startIndex, freeze.row);
+      const y0 = gy + rowTop(this.rowOffsets, startIdx) - layout.scrollTop;
       const y1 =
         gy +
-        (this.rowOffsets[band.endIndex] ?? rowTop(this.rowOffsets, band.endIndex)) -
+        (this.rowOffsets[sel.endIndex] ?? rowTop(this.rowOffsets, sel.endIndex)) -
         layout.scrollTop;
       ctx.fillStyle = GRID_THEME.headerSelectFill;
       ctx.fillRect(0, y0, gx, Math.max(0, y1 - y0));
@@ -684,6 +753,34 @@ export class CanvasRenderer {
       ctx.stroke();
     }
     ctx.restore();
+
+    // Row headers — frozen
+    if (freeze.row > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, gy, gx, band.height);
+      ctx.clip();
+      ctx.fillStyle = GRID_THEME.headerCellBg;
+      ctx.fillRect(0, gy, gx, band.height);
+      ctx.font = "10pt " + luckyFontFamilyStack();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let r = 0; r < freeze.row; r++) {
+        if (sheet.hiddenRows.has(r)) continue;
+        const size = sheet.getRowHeight(r);
+        if (size <= 0) continue;
+        paintRowHeaderItem(rowTop(this.rowOffsets, r), size, String(r + 1), 0);
+      }
+      ctx.restore();
+    }
+
+    // Row-header right edge (must cover frozen + scroll bands; was clipped away before)
+    ctx.strokeStyle = GRID_THEME.headerBorder;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gx - 0.5, gy);
+    ctx.lineTo(gx - 0.5, gy + cellH);
+    ctx.stroke();
   }
 
   private paintResizeGuide(

@@ -1,6 +1,6 @@
 import type { Workbook } from "../model/workbook.js";
 import type { CellData } from "../model/cell.js";
-import { clearCellContent, cloneCell } from "../model/cell.js";
+import { clearCellContent, cloneCell, isCellEmpty } from "../model/cell.js";
 import type { Command, ExecuteResult, InverseEntry } from "./types.js";
 import { FormulaEngine } from "../formula/evaluator.js";
 import { displayValue } from "../model/cell.js";
@@ -148,7 +148,7 @@ export class CommandBus {
       return { command, prevState: current };
     }
 
-    if (command.type === "setCellValue" || command.type === "setStyle" || command.type === "setFormat" || command.type === "clearFormat") {
+    if (command.type === "setCellValue" || command.type === "setStyle" || command.type === "setFormat" || command.type === "clearFormat" || command.type === "setPostil" || command.type === "togglePostilShow") {
       const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
       const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
       const current = cloneCell(
@@ -166,6 +166,21 @@ export class CommandBus {
       }
       this.workbook.setCell(command.row, command.col, entry.prevCell ?? null, sheetIndex);
       return { command, prevCell: current };
+    }
+    if (command.type === "toggleAllPostilShow" && entry.affectedCells) {
+      const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+      const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
+      const current: Array<{ row: number; col: number; cell: CellData | null }> = [];
+      for (const item of entry.affectedCells) {
+        current.push({
+          row: item.row,
+          col: item.col,
+          cell: cloneCell(sheet.getCell(item.row, item.col)),
+        });
+        sheet.setCell(item.row, item.col, item.cell);
+      }
+      this.workbook.emit({ type: "change", sheetIndex });
+      return { command, affectedCells: current };
     }
     if (command.type === "setSelection" && entry.prevSelection) {
       const cur = this.workbook.selection;
@@ -216,6 +231,12 @@ export class CommandBus {
         return this.applySetFormat(command);
       case "clearFormat":
         return this.applyClearFormat(command);
+      case "setPostil":
+        return this.applySetPostil(command);
+      case "togglePostilShow":
+        return this.applyTogglePostilShow(command);
+      case "toggleAllPostilShow":
+        return this.applyToggleAllPostilShow(command);
       case "clearContents":
         return this.applyClearContents(command);
       case "setSelection": {
@@ -585,6 +606,86 @@ export class CommandBus {
         v: next,
       },
     };
+  }
+
+  private applySetPostil(
+    command: Extract<Command, { type: "setPostil" }>,
+  ): ExecuteResult {
+    const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+    const prevCell = cloneCell(
+      this.workbook.getCell(command.row, command.col, sheetIndex),
+    );
+    const next = cloneCell(prevCell) ?? {};
+    if (command.ps == null) {
+      delete next.ps;
+    } else {
+      next.ps = { ...command.ps };
+    }
+    this.workbook.setCell(
+      command.row,
+      command.col,
+      isCellEmpty(next) ? null : next,
+      sheetIndex,
+    );
+    const cellAfter = this.workbook.getCell(command.row, command.col, sheetIndex);
+    return {
+      inverse: { command, prevCell },
+      op: {
+        t: "v",
+        i: sheetIndex,
+        r: command.row,
+        c: command.col,
+        v: cellAfter,
+      },
+    };
+  }
+
+  private applyTogglePostilShow(
+    command: Extract<Command, { type: "togglePostilShow" }>,
+  ): ExecuteResult {
+    const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+    const prevCell = cloneCell(
+      this.workbook.getCell(command.row, command.col, sheetIndex),
+    );
+    if (!prevCell?.ps) {
+      return { inverse: { command, prevCell } };
+    }
+    const next = cloneCell(prevCell)!;
+    next.ps = { ...next.ps!, isshow: !next.ps!.isshow };
+    this.workbook.setCell(command.row, command.col, next, sheetIndex);
+    return {
+      inverse: { command, prevCell },
+      op: {
+        t: "v",
+        i: sheetIndex,
+        r: command.row,
+        c: command.col,
+        v: next,
+      },
+    };
+  }
+
+  private applyToggleAllPostilShow(
+    command: Extract<Command, { type: "toggleAllPostilShow" }>,
+  ): ExecuteResult {
+    const sheetIndex = command.sheetIndex ?? this.workbook.activeIndex;
+    const sheet = this.workbook.getSheetByIndex(sheetIndex)!;
+    const affectedCells: Array<{ row: number; col: number; cell: CellData | null }> = [];
+    let anyHidden = false;
+    sheet.forEachCell((_r, _c, cell) => {
+      if (cell?.ps && !cell.ps.isshow) anyHidden = true;
+    });
+    const show = command.show ?? anyHidden;
+    sheet.forEachCell((r, c, cell) => {
+      if (!cell?.ps) return;
+      if (!!cell.ps.isshow === show) return;
+      affectedCells.push({ row: r, col: c, cell: cloneCell(cell) });
+      const next = cloneCell(cell)!;
+      next.ps = { ...next.ps!, isshow: show };
+      sheet.setCell(r, c, next);
+    });
+    this.workbook.emit({ type: "change", sheetIndex });
+    return { inverse: { command, affectedCells } };
   }
 }
 

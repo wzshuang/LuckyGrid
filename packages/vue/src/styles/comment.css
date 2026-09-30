@@ -1,0 +1,185 @@
+/* Luckysheet-aligned comment / postil bubbles */
+.ls3-comments {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.ls3-comment {
+  position: absolute;
+  pointer-events: none;
+}
+
+.ls3-comment__arrow {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.ls3-comment__main {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 1px solid #000;
+  background-color: rgb(255, 255, 225);
+  color: #000;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.ls3-comment--active .ls3-comment__main {
+  z-index: 200;
+}
+
+.ls3-comment--active .ls3-comment__arrow {
+  z-index: 200;
+}
+
+.ls3-comment__body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.ls3-comment__editor {
+  box-sizing: border-box;
+  line-height: 20px;
+  text-align: center;
+  word-break: break-all;
+  outline: none;
+  white-space: pre-wrap;
+}
+
+.ls3-comment__editor[contenteditable="true"] {
+  cursor: text;
+}
+
+.ls3-comment__move {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.ls3-comment__move-item {
+  position: absolute;
+  pointer-events: auto;
+  cursor: move;
+  background: transparent;
+}
+
+.ls3-comment__move-item--t {
+  left: 0;
+  top: -4px;
+  width: 100%;
+  height: 3px;
+  border-bottom: 1px solid #000;
+}
+
+.ls3-comment__move-item--r {
+  right: -4px;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  border-left: 1px solid #000;
+}
+
+.ls3-comment__move-item--b {
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 3px;
+  border-top: 1px solid #000;
+}
+
+.ls3-comment__move-item--l {
+  left: -4px;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  border-right: 1px solid #000;
+}
+
+.ls3-comment--active .ls3-comment__move-item {
+  border-color: #0188fb;
+}
+
+.ls3-comment__resize {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: none;
+  pointer-events: none;
+}
+
+.ls3-comment--active .ls3-comment__resize {
+  display: block;
+}
+
+.ls3-comment__resize-item {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 1px solid #0188fb;
+  background: #fff;
+  pointer-events: auto;
+}
+
+.ls3-comment__resize-item--lt {
+  left: -3px;
+  top: -3px;
+  cursor: nwse-resize;
+}
+
+.ls3-comment__resize-item--mt {
+  left: 50%;
+  top: -3px;
+  margin-left: -3px;
+  cursor: ns-resize;
+}
+
+.ls3-comment__resize-item--rt {
+  right: -3px;
+  top: -3px;
+  cursor: nesw-resize;
+}
+
+.ls3-comment__resize-item--lm {
+  left: -3px;
+  top: 50%;
+  margin-top: -3px;
+  cursor: ew-resize;
+}
+
+.ls3-comment__resize-item--rm {
+  right: -3px;
+  top: 50%;
+  margin-top: -3px;
+  cursor: ew-resize;
+}
+
+.ls3-comment__resize-item--lb {
+  left: -3px;
+  bottom: -3px;
+  cursor: nesw-resize;
+}
+
+.ls3-comment__resize-item--mb {
+  left: 50%;
+  bottom: -3px;
+  margin-left: -3px;
+  cursor: ns-resize;
+}
+
+.ls3-comment__resize-item--rb {
+  right: -3px;
+  bottom: -3px;
+  cursor: nwse-resize;
+}
+
+.ls3-comment--hover .ls3-comment__main {
+  pointer-events: none;
+}

@@ -11,9 +11,11 @@ import { LUCKY_ENGINE_KEY } from "../composables/useLuckyGrid";
 import { useChromeState } from "../composables/useChromeState";
 import GridCanvas from "./GridCanvas.vue";
 import CellEditor from "./CellEditor.vue";
+import CommentLayer from "./CommentLayer.vue";
 import Toolbar from "./Toolbar.vue";
 import FormulaBar from "./FormulaBar.vue";
 import SheetBar from "./SheetBar.vue";
+import InfoBar, { type InfoBarUserInfo } from "./InfoBar.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -21,14 +23,26 @@ const props = withDefaults(
     lang?: string;
     /** Optional external engine (compat layer). Caller owns lifecycle. */
     engine?: WorkbookEngine;
+    showInfoBar?: boolean;
+    title?: string;
+    myFolderUrl?: string;
+    userInfo?: InfoBarUserInfo;
+    functionButton?: string;
   }>(),
-  { lang: "zh" },
+  {
+    lang: "zh",
+    showInfoBar: true,
+    title: "Luckysheet Demo",
+    userInfo: false,
+    functionButton: "",
+  },
 );
 
 const emit = defineEmits<{
   change: [];
   selectionChange: [selection: SelectionRange[]];
   op: [op: LuckyOp];
+  "update:title": [value: string];
 }>();
 
 const ownsEngine = !props.engine;
@@ -68,6 +82,10 @@ watch(
   },
 );
 
+function onTitleUpdate(value: string) {
+  emit("update:title", value);
+}
+
 defineExpose({
   engine: engineRef,
 });
@@ -75,6 +93,22 @@ defineExpose({
 
 <template>
   <div class="ls3-root" :data-lang="lang">
+    <slot
+      name="info-bar"
+      :engine="engineRef!"
+      :chrome="chrome"
+      :title="title"
+    >
+      <InfoBar
+        v-if="showInfoBar"
+        :title="title"
+        :lang="lang"
+        :my-folder-url="myFolderUrl"
+        :user-info="userInfo"
+        :function-button="functionButton"
+        @update:title="onTitleUpdate"
+      />
+    </slot>
     <slot name="toolbar" :engine="engineRef!" :chrome="chrome">
       <Toolbar :engine="engineRef!" :chrome="chrome" />
     </slot>
@@ -88,6 +122,7 @@ defineExpose({
           :pending-char="pc"
           @consumed-char="clearPending?.()"
         />
+        <CommentLayer :engine="engineRef!" />
       </GridCanvas>
     </div>
     <slot name="sheet-bar" :engine="engineRef!" :chrome="chrome">

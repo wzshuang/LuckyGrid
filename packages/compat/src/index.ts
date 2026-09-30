@@ -1,9 +1,10 @@
 /**
  * Best-effort Luckysheet-compatible imperative API.
- * Does NOT implement the full 109-function surface — only create/destroy/getCellValue/setCellValue.
+ * Does NOT implement the full 109-function surface — only create/destroy/getCellValue/setCellValue
+ * plus workbook name helpers.
  */
-import { createApp, h, type App } from "vue";
-import { LuckyGrid } from "@luckygrid/vue";
+import { createApp, h, shallowRef, type App, type ShallowRef } from "vue";
+import { LuckyGrid, type InfoBarUserInfo } from "@luckygrid/vue";
 import {
   WorkbookEngine,
   type LuckyGridRaw,
@@ -12,6 +13,7 @@ import {
 type Instance = {
   app: App;
   engine: WorkbookEngine;
+  title: ShallowRef<string>;
 };
 
 const registry = new WeakMap<HTMLElement, Instance>();
@@ -23,6 +25,15 @@ export type CreateOptions = {
   lang?: string;
   /** Called with collaborative ops (no WebSocket) */
   onOp?: (op: unknown) => void;
+  /** Show top info bar (default true) */
+  showinfobar?: boolean;
+  /** Workbook title shown in the info bar */
+  title?: string;
+  /** Back-button navigation target */
+  myFolderUrl?: string;
+  userInfo?: InfoBarUserInfo;
+  /** Raw HTML inserted into the info bar (Luckysheet-compatible) */
+  functionButton?: string;
 };
 
 export function create(options: CreateOptions): void {
@@ -41,16 +52,26 @@ export function create(options: CreateOptions): void {
     });
   }
 
+  const title = shallowRef(options.title ?? "Luckysheet Demo");
+
   const app = createApp({
     render: () =>
       h(LuckyGrid, {
         engine,
         lang: options.lang ?? "zh",
+        showInfoBar: options.showinfobar ?? true,
+        title: title.value,
+        myFolderUrl: options.myFolderUrl,
+        userInfo: options.userInfo ?? false,
+        functionButton: options.functionButton ?? "",
+        "onUpdate:title": (value: string) => {
+          title.value = value;
+        },
       }),
   });
 
   app.mount(el);
-  registry.set(el, { app, engine });
+  registry.set(el, { app, engine, title });
   lastContainer = el;
 }
 
@@ -71,7 +92,7 @@ export function destroy(container?: string | HTMLElement): void {
   if (lastContainer === el) lastContainer = null;
 }
 
-function resolveEngine(container?: string | HTMLElement): WorkbookEngine {
+function resolveEl(container?: string | HTMLElement): HTMLElement {
   const el =
     container == null
       ? lastContainer
@@ -79,9 +100,18 @@ function resolveEngine(container?: string | HTMLElement): WorkbookEngine {
         ? document.getElementById(container)
         : container;
   if (!el) throw new Error("No luckygrid instance");
+  return el;
+}
+
+function resolveInstance(container?: string | HTMLElement): Instance {
+  const el = resolveEl(container);
   const inst = registry.get(el);
   if (!inst) throw new Error("Engine not ready");
-  return inst.engine;
+  return inst;
+}
+
+function resolveEngine(container?: string | HTMLElement): WorkbookEngine {
+  return resolveInstance(container).engine;
 }
 
 export function getCellValue(
@@ -103,11 +133,24 @@ export function setCellValue(
   eng.setCellValue(row, column, value);
 }
 
+export function getWorkbookName(container?: string | HTMLElement): string {
+  return resolveInstance(container).title.value;
+}
+
+export function setWorkbookName(
+  name: string,
+  container?: string | HTMLElement,
+): void {
+  resolveInstance(container).title.value = name;
+}
+
 const luckygrid = {
   create,
   destroy,
   getCellValue,
   setCellValue,
+  getWorkbookName,
+  setWorkbookName,
 };
 
 /** Legacy alias for Luckysheet-style global name */

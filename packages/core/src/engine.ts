@@ -24,7 +24,8 @@ import {
   hitTest,
   type CellRect,
 } from "./hit/location.js";
-import { displayValue } from "./model/cell.js";
+import { displayValue, defaultPostil } from "./model/cell.js";
+import { getPostilLayout } from "./comment/postil-layout.js";
 import { extractRange, extractMerges, type ClipboardPayload } from "./clipboard/clipboard.js";
 import {
   cellsToHtml,
@@ -541,12 +542,14 @@ export class WorkbookEngine {
   }
 
   get sheets() {
-    return this.workbook.sheets.map((s) => ({
-      name: s.name,
-      index: s.index,
-      order: s.order,
-      status: s.status,
-    }));
+    return this.workbook.sheets
+      .map((s) => ({
+        name: s.name,
+        index: s.index,
+        order: s.order,
+        status: s.status,
+      }))
+      .sort((a, b) => a.order - b.order);
   }
 
   get undoDepth(): number {
@@ -680,6 +683,114 @@ export class WorkbookEngine {
     const focus = this.getFocusCell();
     if (!focus) return null;
     return this.workbook.getCell(focus.row, focus.col);
+  }
+
+  getActiveComment(): { row: number; col: number } | null {
+    return this.workbook.activeComment;
+  }
+
+  setActiveComment(active: { row: number; col: number } | null): void {
+    this.workbook.setActiveComment(active);
+  }
+
+  getPostil(row: number, col: number) {
+    return this.workbook.getCell(row, col)?.ps ?? null;
+  }
+
+  getPostilLayout(row: number, col: number) {
+    const { sheet, rowOffsets, colOffsets } = this.offsets();
+    const ps = sheet.getCell(row, col)?.ps;
+    return getPostilLayout(
+      sheet,
+      row,
+      col,
+      ps,
+      this.workbook.scrollLeft,
+      this.workbook.scrollTop,
+      rowOffsets,
+      colOffsets,
+    );
+  }
+
+  /** List cells with comments (for always-show + editing overlays). */
+  listPostils(): Array<{ row: number; col: number; ps: NonNullable<CellData["ps"]> }> {
+    const sheet = this.workbook.getActiveSheet();
+    const out: Array<{ row: number; col: number; ps: NonNullable<CellData["ps"]> }> = [];
+    sheet.forEachCell((r, c, cell) => {
+      if (cell?.ps) out.push({ row: r, col: c, ps: cell.ps });
+    });
+    return out;
+  }
+
+  newComment(row?: number, col?: number): void {
+    const focus = this.getFocusCell();
+    const r = row ?? focus?.row ?? 0;
+    const c = col ?? focus?.col ?? 0;
+    const existing = this.workbook.getCell(r, c)?.ps;
+    if (!existing) {
+      this.execute({ type: "setPostil", row: r, col: c, ps: defaultPostil("") });
+    }
+    this.setActiveComment({ row: r, col: c });
+  }
+
+  editComment(row?: number, col?: number): void {
+    const focus = this.getFocusCell();
+    const r = row ?? focus?.row ?? 0;
+    const c = col ?? focus?.col ?? 0;
+    if (!this.workbook.getCell(r, c)?.ps) return;
+    this.setActiveComment({ row: r, col: c });
+  }
+
+  deleteComment(row?: number, col?: number): void {
+    const focus = this.getFocusCell();
+    const r = row ?? focus?.row ?? 0;
+    const c = col ?? focus?.col ?? 0;
+    if (!this.workbook.getCell(r, c)?.ps) return;
+    if (
+      this.workbook.activeComment?.row === r &&
+      this.workbook.activeComment?.col === c
+    ) {
+      this.setActiveComment(null);
+    }
+    this.execute({ type: "setPostil", row: r, col: c, ps: null });
+  }
+
+  showHideComment(row?: number, col?: number): void {
+    const focus = this.getFocusCell();
+    const r = row ?? focus?.row ?? 0;
+    const c = col ?? focus?.col ?? 0;
+    if (!this.workbook.getCell(r, c)?.ps) return;
+    this.execute({ type: "togglePostilShow", row: r, col: c });
+  }
+
+  showHideAllComments(show?: boolean): void {
+    this.execute({ type: "toggleAllPostilShow", show });
+  }
+
+  updateCommentValue(row: number, col: number, value: string): void {
+    const prev = this.workbook.getCell(row, col)?.ps;
+    if (!prev) return;
+    this.execute({
+      type: "setPostil",
+      row,
+      col,
+      ps: { ...prev, value },
+    });
+  }
+
+  updateCommentGeometry(
+    row: number,
+    col: number,
+    geom: Partial<Pick<NonNullable<CellData["ps"]>, "left" | "top" | "width" | "height">>,
+  ): void {
+    const prev = this.workbook.getCell(row, col)?.ps;
+    if (!prev) return;
+    this.execute({
+      type: "setPostil",
+      row,
+      col,
+      ps: { ...prev, ...geom },
+    });
   }
 
   mergeSelection(): void {
@@ -986,7 +1097,11 @@ function isSheetSnapshots(
 ): data is SheetSnapshot[] {
   if (!data.length) return true;
   const first = data[0] as SheetSnapshot & LuckyGridRaw;
-  return Array.isArray(first.celldata) && !("data" in first && first.data && !first.celldata);
+  // Internal snapshots from Sheet.toSnapshot() / fromLuckyFile() always include
+  // an `extras` object. Luckysheet raw sheets keep unknown fields (frozen,
+  // calcChain, …) at the top level and omit `extras` — those must go through
+  // fromLuckyFile so `frozen` maps to config.freeze.
+  return Array.isArray(first.celldata) && Object.prototype.hasOwnProperty.call(first, "extras");
 }
 
 export type { LuckyOp, SelectionRange, PaintMode, Command, CellData, SheetSnapshot, LuckyGridRaw };

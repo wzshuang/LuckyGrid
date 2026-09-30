@@ -34,6 +34,7 @@ export function buildHeaderLayout(
   const colOffsets = buildColOffsets(sheet);
   const scrollLeft = workbook.scrollLeft;
   const scrollTop = workbook.scrollTop;
+  const freeze = sheet.config.freeze ?? { row: 0, col: 0 };
 
   const range = visibleCellRange(
     sheet,
@@ -44,9 +45,10 @@ export function buildHeaderLayout(
     colOffsets,
   );
 
-  const rowStart = Math.max(0, range.scrollStartRow - 1);
+  // Scrollable header labels start after the frozen band.
+  const rowStart = Math.max(freeze.row, Math.max(0, range.scrollStartRow - 1));
   const rowEnd = Math.min(sheet.rowCount - 1, range.endRow + 1);
-  const colStart = Math.max(0, range.scrollStartCol - 1);
+  const colStart = Math.max(freeze.col, Math.max(0, range.scrollStartCol - 1));
   const colEnd = Math.min(sheet.colCount - 1, range.endCol + 1);
 
   const rowItems: HeaderLayoutItem[] = [];

@@ -27,6 +27,51 @@ const KNOWN = new Set([
   "column",
 ]);
 
+/** Luckysheet sheet-level `frozen` → internal `config.freeze` counts */
+export type LuckyFrozen = {
+  type?: string;
+  range?: {
+    row_focus?: number;
+    column_focus?: number;
+    [key: string]: unknown;
+  };
+};
+
+/**
+ * Map Luckysheet `frozen` (e.g. `{ type: "row" }`) to `{ row, col }` freeze counts.
+ * Returns null when there is no freeze / cancel / unknown.
+ */
+export function frozenToFreeze(
+  frozen: LuckyFrozen | null | undefined,
+): { row: number; col: number } | null {
+  if (!frozen || typeof frozen !== "object") return null;
+  const type = frozen.type;
+  if (!type || type === "cancel") return null;
+
+  const rowFocus = Number(frozen.range?.row_focus ?? 0);
+  const colFocus = Number(frozen.range?.column_focus ?? 0);
+
+  switch (type) {
+    case "row":
+      return { row: 1, col: 0 };
+    case "column":
+      return { row: 0, col: 1 };
+    case "both":
+      return { row: 1, col: 1 };
+    case "rangeRow":
+      return { row: Math.max(0, rowFocus + 1), col: 0 };
+    case "rangeColumn":
+      return { row: 0, col: Math.max(0, colFocus + 1) };
+    case "rangeBoth":
+      return {
+        row: Math.max(0, rowFocus + 1),
+        col: Math.max(0, colFocus + 1),
+      };
+    default:
+      return null;
+  }
+}
+
 export function fromLuckyFile(raw: LuckyGridRaw[] | LuckyGridRaw): SheetSnapshot[] {
   const list = Array.isArray(raw) ? raw : [raw];
   return list.map((sheet, i) => {
@@ -53,6 +98,18 @@ export function fromLuckyFile(raw: LuckyGridRaw[] | LuckyGridRaw): SheetSnapshot
     }
 
     const config = { ...(sheet.config ?? {}) } as SheetSnapshot["config"];
+
+    // Prefer explicit config.freeze; otherwise map Luckysheet `frozen`.
+    const existing = config.freeze;
+    const hasFreeze =
+      existing &&
+      typeof existing === "object" &&
+      (Number((existing as { row?: number }).row) > 0 ||
+        Number((existing as { col?: number }).col) > 0);
+    if (!hasFreeze) {
+      const mapped = frozenToFreeze(sheet.frozen as LuckyFrozen | undefined);
+      if (mapped) config.freeze = mapped;
+    }
 
     return {
       name: sheet.name ?? `Sheet${i + 1}`,

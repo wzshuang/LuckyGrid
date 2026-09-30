@@ -181,6 +181,25 @@ export type Command =
       type: "renameSheet";
       index: string | number;
       name: string;
+    }
+  | {
+      type: "setPostil";
+      row: number;
+      col: number;
+      ps: import("../model/cell.js").CellPostil | null;
+      sheetIndex?: string | number;
+    }
+  | {
+      type: "togglePostilShow";
+      row: number;
+      col: number;
+      sheetIndex?: string | number;
+    }
+  | {
+      type: "toggleAllPostilShow";
+      /** if omitted, invert based on whether any are hidden */
+      show?: boolean;
+      sheetIndex?: string | number;
     };
 
 export type InverseEntry = {
